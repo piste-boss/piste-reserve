@@ -3,7 +3,7 @@ import ReservationCalendar from './components/ReservationCalendar';
 import ReservationTime from './components/ReservationTime';
 import ReservationForm from './components/ReservationForm';
 
-type Step = 'MENU' | 'DATE' | 'TIME' | 'FORM' | 'COMPLETE';
+type Step = 'MENU' | 'DATE' | 'TIME' | 'FORM' | 'COMPLETE' | 'ADMIN';
 
 interface ReservationData {
   menu: string;
@@ -16,6 +16,7 @@ interface ReservationData {
 
 import logo from './assets/logo.png';
 import AIChat from './components/AIChat';
+import AdminDashboard from './components/AdminDashboard';
 import { supabase } from './lib/supabase';
 
 const MENUS = [
@@ -28,6 +29,7 @@ const MENUS = [
 
 const App: React.FC = () => {
   const [step, setStep] = useState<Step>('MENU');
+  const [adminClickCount, setAdminClickCount] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [data, setData] = useState<ReservationData>({
     menu: '',
@@ -78,7 +80,20 @@ const App: React.FC = () => {
   return (
     <div className="container">
       <header style={{ textAlign: 'center', padding: '30px 0' }}>
-        <img src={logo} alt="Piste Logo" style={{ height: '80px', marginBottom: '10px' }} />
+        <img
+          src={logo}
+          alt="Piste Logo"
+          style={{ height: '80px', marginBottom: '10px', cursor: 'pointer' }}
+          onClick={() => {
+            const nextCount = adminClickCount + 1;
+            if (nextCount >= 5) {
+              setStep('ADMIN');
+              setAdminClickCount(0);
+            } else {
+              setAdminClickCount(nextCount);
+            }
+          }}
+        />
         <p style={{ color: 'var(--piste-text-muted)', fontSize: '14px', fontWeight: '500' }}>Piste 予約システム</p>
       </header>
 
@@ -166,6 +181,16 @@ const App: React.FC = () => {
             }}>
               トップに戻る
             </button>
+          </div>
+        )}
+        {step === 'ADMIN' && (
+          <div>
+            <AdminDashboard />
+            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+              <button className="btn-secondary" onClick={() => setStep('MENU')}>
+                予約画面に戻る
+              </button>
+            </div>
           </div>
         )}
       </main>
