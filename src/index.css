@@ -2,6 +2,8 @@
   /* Color Palette */
   --piste-dark-blue: #0A192F;
   --piste-gold: #BF953F;
+  --piste-green: #8EC31F;
+  /* C50 Y100 equivalent */
   --piste-gold-light: #FCF6BA;
   --piste-gold-dark: #AA771C;
   --piste-white: #FFFFFF;
@@ -12,7 +14,7 @@
 
   /* Typography */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  
+
   /* Layout */
   --border-radius: 12px;
   --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -27,7 +29,7 @@
 
 body {
   font-family: var(--font-family);
-  background-color: var(--piste-gray-bg);
+  background-color: var(--piste-white);
   color: var(--piste-text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -54,7 +56,8 @@ a {
 
 /* Base Utility Classes */
 .container {
-  max-width: 500px; /* Mobile focused */
+  max-width: 500px;
+  /* Mobile focused */
   margin: 0 auto;
   padding: 20px;
   width: 100%;
@@ -65,17 +68,18 @@ a {
   border-radius: var(--border-radius);
   padding: 20px;
   box-shadow: var(--shadow-subtle);
+  border: 1px solid #f0f0f0;
   margin-bottom: 20px;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--piste-gold) 0%, var(--piste-gold-dark) 100%);
+  background: var(--piste-green);
   color: var(--piste-white);
   padding: 12px 24px;
   border-radius: 30px;
   font-weight: 600;
   text-align: center;
-  box-shadow: var(--shadow-premium);
+  box-shadow: 0 4px 14px rgba(142, 195, 31, 0.3);
 }
 
 .btn-primary:active {

@@ -10,6 +10,7 @@ interface ReservationData {
   date: string;
   time: string;
   name: string;
+  phone: string;
   email: string;
 }
 
@@ -30,6 +31,7 @@ const App: React.FC = () => {
     date: '',
     time: '',
     name: '',
+    phone: '',
     email: '',
   });
 
@@ -45,7 +47,7 @@ const App: React.FC = () => {
     nextStep('FORM');
   };
 
-  const handleFormSubmit = (formData: { name: string; email: string }) => {
+  const handleFormSubmit = (formData: { name: string; email: string; phone: string }) => {
     setData({ ...data, ...formData });
     nextStep('COMPLETE');
   };
@@ -136,7 +138,7 @@ const App: React.FC = () => {
               <div><strong>時間:</strong> {data.time}</div>
             </div>
             <button className="btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => {
-              setData({ menu: '', date: '', time: '', name: '', email: '' });
+              setData({ menu: '', date: '', time: '', name: '', phone: '', email: '' });
               setStep('MENU');
             }}>
               トップに戻る
@@ -145,28 +147,50 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* AI Chat Bubble */}
+      {/* AI Chat Bubble with Examples */}
       <div style={{
         position: 'fixed',
         bottom: '20px',
         right: '20px',
-        backgroundColor: 'var(--piste-dark-blue)',
-        color: 'white',
-        padding: '12px 20px',
-        borderRadius: '30px',
-        boxShadow: 'var(--shadow-premium)',
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
         gap: '10px',
-        cursor: 'pointer',
-        zIndex: 100,
-        transition: 'all 0.3s ease'
-      }}
-        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-      >
-        <div style={{ width: '10px', height: '10px', backgroundColor: '#4ade80', borderRadius: '50%' }}></div>
-        <span style={{ fontSize: '14px', fontWeight: '600' }}>AIコンシェルジュに相談</span>
+        zIndex: 100
+      }}>
+        <div className="card" style={{
+          padding: '12px 16px',
+          fontSize: '13px',
+          marginBottom: 0,
+          boxShadow: 'var(--shadow-premium)',
+          borderRadius: '16px 16px 4px 16px',
+          maxWidth: '220px',
+          border: '1px solid var(--piste-green)',
+          backgroundColor: '#f0fff4'
+        }}>
+          <div style={{ fontWeight: 'bold', color: 'var(--piste-green)', marginBottom: '4px' }}>例えばこんな質問</div>
+          <div style={{ color: 'var(--piste-text-main)', marginBottom: '4px', cursor: 'pointer' }}>「キャンセルしたいです。」</div>
+          <div style={{ color: 'var(--piste-text-main)', cursor: 'pointer' }}>「2/3の空き情報を教えてください」</div>
+        </div>
+
+        <div style={{
+          backgroundColor: 'var(--piste-dark-blue)',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '30px',
+          boxShadow: 'var(--shadow-premium)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease'
+        }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          <div style={{ width: '10px', height: '10px', backgroundColor: '#4ade80', borderRadius: '50%' }}></div>
+          <span style={{ fontSize: '14px', fontWeight: '600' }}>AIコンシェルジュに相談</span>
+        </div>
       </div>
     </div>
   );

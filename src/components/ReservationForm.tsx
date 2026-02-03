@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 
 interface Props {
-    onSubmit: (formData: { name: string; email: string }) => void;
+    onSubmit: (formData: { name: string; email: string; phone: string }) => void;
     onBack: () => void;
 }
 
 const ReservationForm: React.FC<Props> = ({ onSubmit, onBack }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (name && email) {
-            onSubmit({ name, email });
+        if (name && email && phone) {
+            onSubmit({ name, email, phone });
         }
     };
 
@@ -36,6 +37,24 @@ const ReservationForm: React.FC<Props> = ({ onSubmit, onBack }) => {
                         }}
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                    />
+                </div>
+
+                <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px', color: 'var(--piste-text-muted)' }}>電話番号</label>
+                    <input
+                        type="tel"
+                        required
+                        placeholder="09012345678"
+                        style={{
+                            width: '100%',
+                            padding: '12px',
+                            borderRadius: '8px',
+                            border: '1px solid #ddd',
+                            fontSize: '16px'
+                        }}
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
                     />
                 </div>
 

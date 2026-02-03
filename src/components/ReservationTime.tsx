@@ -6,9 +6,24 @@ interface Props {
     onBack: () => void;
 }
 
-const TIMES = [
-    '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
-];
+const generateTimes = () => {
+    const times = [];
+    // Morning: 09:30 - 12:30
+    let mHour = 9, mMin = 30;
+    while (mHour < 12 || (mHour === 12 && mMin <= 30)) {
+        times.push(`${mHour.toString().padStart(2, '0')}:${mMin.toString().padStart(2, '0')}`);
+        mMin += 20; if (mMin >= 60) { mHour++; mMin -= 60; }
+    }
+    // Afternoon: 13:00 - 20:40
+    let aHour = 13, aMin = 0;
+    while (aHour < 21) {
+        times.push(`${aHour.toString().padStart(2, '0')}:${aMin.toString().padStart(2, '0')}`);
+        aMin += 20; if (aMin >= 60) { aHour++; aMin -= 60; }
+    }
+    return times;
+};
+
+const TIMES = generateTimes();
 
 const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack }) => {
     return (
