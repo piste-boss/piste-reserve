@@ -15,6 +15,7 @@ interface ReservationData {
 }
 
 import logo from './assets/logo.png';
+import AIChat from './components/AIChat';
 
 const MENUS = [
   { id: 'personal-20', label: 'パーソナルトレーニング', duration: 20 },
@@ -26,6 +27,7 @@ const MENUS = [
 
 const App: React.FC = () => {
   const [step, setStep] = useState<Step>('MENU');
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [data, setData] = useState<ReservationData>({
     menu: '',
     date: '',
@@ -187,11 +189,13 @@ const App: React.FC = () => {
         }}
           onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
           onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          onClick={() => setIsChatOpen(true)}
         >
           <div style={{ width: '10px', height: '10px', backgroundColor: '#4ade80', borderRadius: '50%' }}></div>
-          <span style={{ fontSize: '14px', fontWeight: '600' }}>AIコンシェルジュに相談</span>
+          <span style={{ fontSize: '14px', fontWeight: '600' }}>デコピンに相談</span>
         </div>
       </div>
+      <AIChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 };
