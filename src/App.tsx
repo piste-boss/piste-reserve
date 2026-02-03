@@ -13,6 +13,8 @@ interface ReservationData {
   email: string;
 }
 
+import logo from './assets/logo.png';
+
 const MENUS = [
   { id: 'personal-20', label: 'パーソナルトレーニング', duration: 20 },
   { id: 'trial-60', label: '無料体験', duration: 60 },
@@ -50,9 +52,9 @@ const App: React.FC = () => {
 
   return (
     <div className="container">
-      <header style={{ textAlign: 'center', padding: '40px 0' }}>
-        <h1 style={{ color: 'var(--piste-dark-blue)', fontSize: '24px', fontWeight: '800' }}>Piste Reserve</h1>
-        <p style={{ color: 'var(--piste-text-muted)', fontSize: '14px' }}>パーソナルジム Piste 予約システム</p>
+      <header style={{ textAlign: 'center', padding: '30px 0' }}>
+        <img src={logo} alt="Piste Logo" style={{ height: '80px', marginBottom: '10px' }} />
+        <p style={{ color: 'var(--piste-text-muted)', fontSize: '14px', fontWeight: '500' }}>Piste 予約システム</p>
       </header>
 
       <main style={{ paddingBottom: '100px' }}>
