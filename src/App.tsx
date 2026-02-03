@@ -16,6 +16,7 @@ interface ReservationData {
 
 import logo from './assets/logo.png';
 import AIChat from './components/AIChat';
+import { supabase } from './lib/supabase';
 
 const MENUS = [
   { id: 'personal-20', label: 'パーソナルトレーニング', duration: 20 },
@@ -49,7 +50,27 @@ const App: React.FC = () => {
     nextStep('FORM');
   };
 
-  const handleFormSubmit = (formData: { name: string; email: string; phone: string }) => {
+  const handleFormSubmit = async (formData: { name: string; email: string; phone: string }) => {
+    const reservation = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      reservation_date: data.date,
+      reservation_time: data.time,
+      menu_id: data.menu,
+      source: 'web'
+    };
+
+    const { error } = await supabase
+      .from('reservations')
+      .insert([reservation]);
+
+    if (error) {
+      console.error('Reservation Error:', error);
+      alert('予約の保存に失敗しました。時間をおいて再度お試しください。');
+      return;
+    }
+
     setData({ ...data, ...formData });
     nextStep('COMPLETE');
   };
