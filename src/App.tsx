@@ -266,7 +266,7 @@ const App: React.FC = () => {
           onClick={() => setIsChatOpen(true)}
         >
           <div style={{ width: '10px', height: '10px', backgroundColor: '#4ade80', borderRadius: '50%' }}></div>
-          <span style={{ fontSize: '14px', fontWeight: '600' }}>デコピンに相談</span>
+          <span style={{ fontSize: '14px', fontWeight: '600' }}>デコピン（AI）に相談</span>
         </div>
       </div>
       <AIChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />

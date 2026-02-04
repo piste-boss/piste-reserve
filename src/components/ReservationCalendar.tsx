@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 interface Props {
     onSelect: (date: string) => void;
-    onBack: () => void;
+    onBack?: () => void;
 }
 
 const ReservationCalendar: React.FC<Props> = ({ onSelect, onBack }) => {
@@ -29,25 +29,28 @@ const ReservationCalendar: React.FC<Props> = ({ onSelect, onBack }) => {
         const dayOfWeek = date.getDay();
         const isHoliday = dayOfWeek === 0 || dayOfWeek === 1; // Sun, Mon
 
-        // In actual app, we would check for Japanese holidays here
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const isPast = date < today;
+        const isDisabled = isHoliday || isPast;
 
         days.push(
             <button
                 key={d}
-                disabled={isHoliday || date < new Date()}
+                disabled={isDisabled}
                 style={{
                     padding: '10px',
                     borderRadius: '50%',
-                    backgroundColor: isHoliday ? '#f3f4f6' : 'white',
-                    color: isHoliday ? '#cbd5e0' : 'var(--piste-text-main)',
+                    backgroundColor: isDisabled ? '#f3f4f6' : 'white',
+                    color: isDisabled ? '#cbd5e0' : 'var(--piste-text-main)',
                     border: '1px solid transparent',
-                    cursor: isHoliday ? 'default' : 'pointer',
+                    cursor: isDisabled ? 'default' : 'pointer',
                     fontSize: '14px',
                     fontWeight: '500',
                     aspectRatio: '1/1'
                 }}
                 onClick={() => {
-                    if (!isHoliday) {
+                    if (!isDisabled) {
                         onSelect(`${year}-${(month + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`);
                     }
                 }}
@@ -72,13 +75,11 @@ const ReservationCalendar: React.FC<Props> = ({ onSelect, onBack }) => {
                 {days}
             </div>
 
-            <div style={{ fontSize: '12px', color: 'var(--piste-text-muted)', marginBottom: '20px' }}>
-                ※日は全休、月は不定休（デフォルトは休み設定）です。
-            </div>
-
-            <button className="btn-primary" style={{ width: '100%', background: 'transparent', color: 'var(--piste-text-muted)', border: '1px solid #ddd', boxShadow: 'none' }} onClick={onBack}>
-                戻る
-            </button>
+            {onBack && (
+                <button className="btn-primary" style={{ width: '100%', background: 'transparent', color: 'var(--piste-text-muted)', border: '1px solid #ddd', boxShadow: 'none' }} onClick={onBack}>
+                    戻る
+                </button>
+            )}
         </div>
     );
 };
