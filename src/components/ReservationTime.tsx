@@ -64,6 +64,10 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack }) => {
         fetchBookedTimes();
     }, [date]);
 
+    const now = new Date();
+    const isToday = date === now.toLocaleDateString('sv-SE');
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
     return (
         <div className="card">
             <h2 style={{ fontSize: '18px', marginBottom: '10px' }}>予約時間を選択</h2>
@@ -71,10 +75,13 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack }) => {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '20px' }}>
                 {TIMES.map(t => {
+                    const [h, m] = t.split(':').map(Number);
+                    const slotMinutes = h * 60 + m;
+                    const isPast = isToday && slotMinutes < currentMinutes;
+
                     const isBooked = bookedRanges.some(range => {
                         if (!range.start) return false;
 
-                        // 比較する時間をすべて HH:mm 形式に統一
                         const slotTime = t.substring(0, 5);
                         const start = range.start.substring(0, 5);
                         const end = range.end.substring(0, 5);
@@ -82,14 +89,16 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack }) => {
                         if (start === end) {
                             return slotTime === start;
                         }
-                        // 範囲内かチェック (10:00 <= 10:20 < 11:00)
                         return slotTime >= start && slotTime < end;
                     });
+
+                    const isDisabled = isBooked || isPast || loading;
+
                     return (
                         <button
                             key={t}
                             className="card"
-                            disabled={isBooked || loading}
+                            disabled={isDisabled}
                             style={{
                                 margin: 0,
                                 padding: '15px',
@@ -97,14 +106,14 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack }) => {
                                 border: '1px solid #eee',
                                 fontSize: '16px',
                                 fontWeight: '600',
-                                color: isBooked ? '#ef4444' : 'var(--piste-dark-blue)',
-                                backgroundColor: isBooked ? '#fee2e2' : 'white',
-                                cursor: isBooked ? 'not-allowed' : 'pointer',
-                                opacity: isBooked ? 1 : (loading ? 0.6 : 1)
+                                color: isBooked ? '#ef4444' : (isPast ? '#cbd5e0' : 'var(--piste-dark-blue)'),
+                                backgroundColor: isBooked ? '#fee2e2' : (isPast ? '#f3f4f6' : 'white'),
+                                cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                opacity: isDisabled ? 1 : 1
                             }}
-                            onClick={() => !isBooked && onSelect(t)}
+                            onClick={() => !isDisabled && onSelect(t)}
                         >
-                            {t} {isBooked && '×'}
+                            {t} {isBooked ? '×' : (isPast ? '-' : '')}
                         </button>
                     );
                 })}
