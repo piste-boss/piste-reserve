@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 interface Props {
     date: string;
@@ -26,30 +27,87 @@ const generateTimes = () => {
 const TIMES = generateTimes();
 
 const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack }) => {
+    const [bookedRanges, setBookedRanges] = useState<{ start: string, end: string }[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchBookedTimes = async () => {
+            setLoading(true);
+            try {
+                const { data, error } = await supabase
+                    .from('reservations')
+                    .select('reservation_time, reservation_end_time')
+                    .eq('reservation_date', date);
+
+                if (error) {
+                    console.error("Fetch Error:", error);
+                    // 列がないなどのエラー時は、古い形式で再試行（バックアップ）
+                    const { data: fallbackData } = await supabase
+                        .from('reservations')
+                        .select('reservation_time')
+                        .eq('reservation_date', date);
+                    if (fallbackData) {
+                        setBookedRanges(fallbackData.map(r => ({ start: r.reservation_time.substring(0, 5), end: r.reservation_time.substring(0, 5) })));
+                    }
+                } else if (data) {
+                    setBookedRanges(data.map(r => ({
+                        start: r.reservation_time?.substring(0, 5) || "",
+                        end: (r.reservation_end_time || r.reservation_time)?.substring(0, 5) || ""
+                    })));
+                }
+            } catch (e) {
+                console.error("Connection Error:", e);
+            }
+            setLoading(false);
+        };
+
+        fetchBookedTimes();
+    }, [date]);
+
     return (
         <div className="card">
             <h2 style={{ fontSize: '18px', marginBottom: '10px' }}>予約時間を選択</h2>
             <p style={{ fontSize: '14px', color: 'var(--piste-text-muted)', marginBottom: '20px' }}>選択日: {date}</p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '20px' }}>
-                {TIMES.map(t => (
-                    <button
-                        key={t}
-                        className="card"
-                        style={{
-                            margin: 0,
-                            padding: '15px',
-                            textAlign: 'center',
-                            border: '1px solid #eee',
-                            fontSize: '16px',
-                            fontWeight: '600',
-                            color: 'var(--piste-dark-blue)'
-                        }}
-                        onClick={() => onSelect(t)}
-                    >
-                        {t}
-                    </button>
-                ))}
+                {TIMES.map(t => {
+                    const isBooked = bookedRanges.some(range => {
+                        if (!range.start) return false;
+
+                        // 比較する時間をすべて HH:mm 形式に統一
+                        const slotTime = t.substring(0, 5);
+                        const start = range.start.substring(0, 5);
+                        const end = range.end.substring(0, 5);
+
+                        if (start === end) {
+                            return slotTime === start;
+                        }
+                        // 範囲内かチェック (10:00 <= 10:20 < 11:00)
+                        return slotTime >= start && slotTime < end;
+                    });
+                    return (
+                        <button
+                            key={t}
+                            className="card"
+                            disabled={isBooked || loading}
+                            style={{
+                                margin: 0,
+                                padding: '15px',
+                                textAlign: 'center',
+                                border: '1px solid #eee',
+                                fontSize: '16px',
+                                fontWeight: '600',
+                                color: isBooked ? '#ef4444' : 'var(--piste-dark-blue)',
+                                backgroundColor: isBooked ? '#fee2e2' : 'white',
+                                cursor: isBooked ? 'not-allowed' : 'pointer',
+                                opacity: isBooked ? 1 : (loading ? 0.6 : 1)
+                            }}
+                            onClick={() => !isBooked && onSelect(t)}
+                        >
+                            {t} {isBooked && '×'}
+                        </button>
+                    );
+                })}
             </div>
 
             <button className="btn-primary" style={{ width: '100%', background: 'transparent', color: 'var(--piste-text-muted)', border: '1px solid #ddd', boxShadow: 'none' }} onClick={onBack}>
