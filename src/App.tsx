@@ -40,6 +40,8 @@ const App: React.FC = () => {
     email: '',
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const nextStep = (next: Step) => setStep(next);
 
   const handleDateSelect = (date: string) => {
@@ -53,28 +55,53 @@ const App: React.FC = () => {
   };
 
   const handleFormSubmit = async (formData: { name: string; email: string; phone: string }) => {
-    const reservation = {
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      reservation_date: data.date,
-      reservation_time: data.time,
-      menu_id: data.menu,
-      source: 'web'
-    };
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-    const { error } = await supabase
-      .from('reservations')
-      .insert([reservation]);
+    try {
+      // 念のため、同じ時間・同じ名前の予約が既に存在するかチェック
+      const { data: existing } = await supabase
+        .from('reservations')
+        .select('id')
+        .eq('reservation_date', data.date)
+        .eq('reservation_time', data.time)
+        .eq('name', formData.name)
+        .limit(1);
 
-    if (error) {
-      console.error('Reservation Error:', error);
-      alert('予約の保存に失敗しました。時間をおいて再度お試しください。');
-      return;
+      if (existing && existing.length > 0) {
+        console.log('Duplicate reservation detected, skipping insert');
+        setData({ ...data, ...formData });
+        nextStep('COMPLETE');
+        return;
+      }
+
+      const reservation = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        reservation_date: data.date,
+        reservation_time: data.time,
+        menu_id: data.menu,
+        source: 'web'
+      };
+
+      const { error } = await supabase
+        .from('reservations')
+        .insert([reservation]);
+
+      if (error) {
+        console.error('Reservation Error:', error);
+        alert('予約の保存に失敗しました。時間をおいて再度お試しください。');
+        return;
+      }
+
+      setData({ ...data, ...formData });
+      nextStep('COMPLETE');
+    } catch (err) {
+      console.error('Unexpected error:', err);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setData({ ...data, ...formData });
-    nextStep('COMPLETE');
   };
 
   return (
@@ -160,6 +187,7 @@ const App: React.FC = () => {
           <ReservationForm
             onSubmit={handleFormSubmit}
             onBack={() => nextStep('TIME')}
+            isSubmitting={isSubmitting}
           />
         )}
 

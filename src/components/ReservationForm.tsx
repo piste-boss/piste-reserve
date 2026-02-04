@@ -3,16 +3,17 @@ import React, { useState } from 'react';
 interface Props {
     onSubmit: (formData: { name: string; email: string; phone: string }) => void;
     onBack: () => void;
+    isSubmitting: boolean;
 }
 
-const ReservationForm: React.FC<Props> = ({ onSubmit, onBack }) => {
+const ReservationForm: React.FC<Props> = ({ onSubmit, onBack, isSubmitting }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (name && email && phone) {
+        if (name && email && phone && !isSubmitting) {
             onSubmit({ name, email, phone });
         }
     };
@@ -76,8 +77,18 @@ const ReservationForm: React.FC<Props> = ({ onSubmit, onBack }) => {
                     />
                 </div>
 
-                <button type="submit" className="btn-primary" style={{ width: '100%', marginBottom: '10px' }}>
-                    予約を確定する
+                <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{
+                        width: '100%',
+                        marginBottom: '10px',
+                        opacity: isSubmitting ? 0.7 : 1,
+                        cursor: isSubmitting ? 'not-allowed' : 'pointer'
+                    }}
+                    disabled={isSubmitting}
+                >
+                    {isSubmitting ? '送信中...' : '予約を確定する'}
                 </button>
             </form>
 
