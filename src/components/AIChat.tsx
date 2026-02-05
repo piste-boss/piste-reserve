@@ -12,7 +12,7 @@ interface Props {
     onClose: () => void;
 }
 
-const API_KEY = "AIzaSyB35EmmHGKlc8_apokVLcPiA47WykrG_E8";
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 const tools = [
