@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { supabase } from '../lib/supabase';
 
 interface Message {
