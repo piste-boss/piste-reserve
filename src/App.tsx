@@ -70,7 +70,12 @@ const App: React.FC = () => {
       .select('*')
       .eq('id', userId)
       .single();
-    if (data) setProfile(data);
+    if (data) {
+      setProfile(data);
+      if (data.line_user_id) {
+        setIsLinked(true);
+      }
+    }
   };
 
   const nextStep = (next: Step) => setStep(next);
