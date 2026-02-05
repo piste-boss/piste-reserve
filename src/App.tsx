@@ -319,7 +319,16 @@ const App: React.FC = () => {
         <div style={{ width: '10px', height: '10px', backgroundColor: '#4ade80', borderRadius: '50%' }}></div>
         デコピン（AI）に相談する
       </button>
-      <AIChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      <AIChat
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        lineUserId={profile?.line_user_id}
+        userContext={profile ? {
+          name: profile.name,
+          email: session?.user.email,
+          phone: profile.phone
+        } : null}
+      />
     </div>
   );
 };

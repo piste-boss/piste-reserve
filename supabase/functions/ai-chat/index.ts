@@ -81,13 +81,23 @@ serve(async (req) => {
     }
 
     try {
-        const { message, history } = await req.json();
+        const { message, history, userContext, lineUserId } = await req.json();
         const todayStr = new Date().toISOString().split('T')[0];
+
+        const userInfoPrompt = userContext ? `
+【現在ログイン中のお客様情報】
+お名前: ${userContext.name || '未設定'}
+メール: ${userContext.email || '未設定'}
+電話番号: ${userContext.phone || '未設定'}
+※この情報はすでに把握しています。予約時に再度尋ねる必要はありません。
+` : '【現在のお客様情報】非ログイン（ゲスト利用）';
 
         const model = genAI.getGenerativeModel({
             model: "gemini-2.0-flash",
             tools: tools,
             systemInstruction: `あなたは「Piste（ピステ）のAIコンシェルジュ、デコピン」です。丁寧で誠実な敬語で予約管理をサポートします。
+
+${userInfoPrompt}
 
 【最優先：メニューIDの扱い】
 お客様に「メニューID」を尋ねたり、システム上のID名（personal-20など）を伝えたりしないでください。
@@ -133,15 +143,16 @@ serve(async (req) => {
                 toolResponseContent = JSON.stringify({ found_reservations: data || [] });
             }
             else if (call.name === "add_reservation") {
-                console.log("Adding reservation:", args);
+                console.log("Adding reservation for:", args.name || userContext?.name);
                 const { error } = await supabase.from('reservations').insert([{
-                    name: args.name,
-                    email: args.email,
-                    phone: args.phone,
+                    name: args.name || userContext?.name,
+                    email: args.email || userContext?.email,
+                    phone: args.phone || userContext?.phone,
                     reservation_date: args.date,
                     reservation_time: args.time,
                     menu_id: args.menu_id,
-                    source: 'ai-dekopin'
+                    source: 'ai-dekopin',
+                    line_user_id: lineUserId
                 }]);
                 if (error) console.error("Add reservation error:", error);
                 toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success", message: "予約を登録しました。" });

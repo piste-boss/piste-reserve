@@ -9,9 +9,15 @@ interface Message {
 interface Props {
     isOpen: boolean;
     onClose: () => void;
+    lineUserId?: string;
+    userContext?: {
+        name?: string;
+        email?: string;
+        phone?: string;
+    } | null;
 }
 
-const AIChat: React.FC<Props> = ({ isOpen, onClose }) => {
+const AIChat: React.FC<Props> = ({ isOpen, onClose, lineUserId, userContext }) => {
     const [messages, setMessages] = useState<Message[]>([
         { role: 'model', text: 'PisteのAIコンシェルジュ、デコピンです。予約の空き状況確認やキャンセル、確認などを承ります。何かお手伝いしましょうか？' }
     ]);
@@ -36,7 +42,12 @@ const AIChat: React.FC<Props> = ({ isOpen, onClose }) => {
 
         try {
             const { data, error } = await supabase.functions.invoke('ai-chat', {
-                body: { message: userMessage, history: history }
+                body: {
+                    message: userMessage,
+                    history: history,
+                    lineUserId: lineUserId,
+                    userContext: userContext
+                }
             });
 
             if (error) throw error;
