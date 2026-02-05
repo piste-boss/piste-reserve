@@ -9,31 +9,94 @@ interface Props {
 const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
     const [reservations, setReservations] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [profile, setProfile] = useState<any>(null);
+    const [isLiffLoading, setIsLiffLoading] = useState(false);
 
     useEffect(() => {
-        fetchReservations();
+        fetchData();
     }, []);
 
     const [cancelingId, setCancelingId] = useState<string | null>(null);
     const [cancelReason, setCancelReason] = useState('');
 
-    const fetchReservations = async () => {
+    const fetchData = async () => {
         try {
+            setLoading(true);
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const { data, error } = await supabase
+            // 予約情報の取得
+            const { data: resvData } = await supabase
                 .from('reservations')
                 .select('*')
                 .eq('user_id', user.id)
                 .order('reservation_date', { ascending: true });
 
-            if (error) throw error;
-            setReservations(data || []);
+            setReservations(resvData || []);
+
+            // プロファイルの取得
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+            setProfile(profileData);
+
         } catch (err) {
-            console.error('Error fetching reservations:', err);
+            console.error('Error fetching data:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleLineLink = async () => {
+        const LIFF_ID = "2009052718-9rclRq3Z";
+        setIsLiffLoading(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const liff = (await import('@line/liff')).default;
+            await liff.init({ liffId: LIFF_ID });
+            if (!liff.isLoggedIn()) {
+                liff.login();
+                return;
+            }
+            const lineProfile = await liff.getProfile();
+            const { error } = await supabase
+                .from('profiles')
+                .update({ line_user_id: lineProfile.userId })
+                .eq('id', user.id);
+
+            if (error) throw error;
+            alert('LINE連携が完了しました！');
+            fetchData();
+        } catch (err) {
+            console.error('LINE link error:', err);
+            alert('連携に失敗しました。');
+        } finally {
+            setIsLiffLoading(false);
+        }
+    };
+
+    const handleLineUnlink = async () => {
+        if (!confirm('LINE連携を解除してもよろしいですか？\n解除するとLINEでの通知が届かなくなります。')) return;
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { error } = await supabase
+                .from('profiles')
+                .update({ line_user_id: null })
+                .eq('id', user.id);
+
+            if (error) throw error;
+            alert('LINE連携を解除しました。');
+            fetchData();
+        } catch (err) {
+            console.error('LINE unlink error:', err);
+            alert('解除に失敗しました。');
         }
     };
 
@@ -42,7 +105,6 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
 
         try {
             setLoading(true);
-            // 理由があれば先に更新（削除時のWebhook/old_recordに含めるため）
             if (cancelReason) {
                 await supabase
                     .from('reservations')
@@ -59,7 +121,7 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
             alert('予約をキャンセルしました。');
             setCancelingId(null);
             setCancelReason('');
-            fetchReservations();
+            fetchData();
         } catch (err) {
             console.error('Cancel error:', err);
             alert('キャンセルに失敗しました。');
@@ -83,6 +145,46 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h2 style={{ fontSize: '18px' }}>マイページ</h2>
                 <span style={{ fontSize: '12px', color: 'var(--piste-text-muted)' }}>{userEmail}</span>
+            </div>
+
+            {/* LINE連携セクション */}
+            <div style={{
+                background: '#f8f9fa',
+                padding: '15px',
+                borderRadius: '12px',
+                marginBottom: '25px',
+                border: '1px solid #eee',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+            }}>
+                <div>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill={profile?.line_user_id ? "#06C755" : "#ccc"}>
+                            <path d="M24 10.304c0-4.587-4.783-8.304-10.666-8.304-5.884 0-10.667 3.717-10.667 8.304 0 4.108 3.792 7.545 8.916 8.192l-.63 2.367c-.076.284.185.528.46.4l3.234-1.46c.394.053.798.081 1.21.081 5.883 0 10.666-3.717 10.666-8.304z" />
+                        </svg>
+                        LINE通知設定
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--piste-text-muted)' }}>
+                        {profile?.line_user_id ? '連携済み' : '未連携（現在はメール通知）'}
+                    </div>
+                </div>
+                {profile?.line_user_id ? (
+                    <button
+                        onClick={handleLineUnlink}
+                        style={{ fontSize: '12px', background: 'none', border: '1px solid #ddd', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', color: '#666' }}
+                    >
+                        解除する
+                    </button>
+                ) : (
+                    <button
+                        onClick={handleLineLink}
+                        disabled={isLiffLoading}
+                        style={{ fontSize: '12px', backgroundColor: '#06C755', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                        {isLiffLoading ? '処理中...' : '連携する'}
+                    </button>
+                )}
             </div>
 
             <h3 style={{ fontSize: '16px', marginBottom: '15px' }}>現在のご予約</h3>

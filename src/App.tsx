@@ -251,7 +251,15 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {step === 'MYPAGE' && <MyPage onBack={() => nextStep('MENU')} userEmail={session?.user.email || ''} />}
+        {step === 'MYPAGE' && (
+          <MyPage
+            onBack={() => {
+              if (session) fetchProfile(session.user.id);
+              nextStep('MENU');
+            }}
+            userEmail={session?.user.email || ''}
+          />
+        )}
         {step === 'DATE' && <ReservationCalendar onSelect={(date) => { setData({ ...data, date }); nextStep('TIME'); }} onBack={() => nextStep('MENU')} />}
         {step === 'TIME' && <ReservationTime date={data.date} onSelect={(time) => { setData({ ...data, time }); nextStep('FORM'); }} onBack={() => nextStep('DATE')} />}
         {step === 'FORM' && (
