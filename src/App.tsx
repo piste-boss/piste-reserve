@@ -299,7 +299,7 @@ const App: React.FC = () => {
           right: '20px',
           padding: '12px 24px',
           borderRadius: '30px',
-          backgroundColor: 'var(--piste-green)',
+          backgroundColor: 'var(--piste-dark-blue)',
           color: 'white',
           border: 'none',
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
@@ -307,11 +307,16 @@ const App: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          gap: '10px',
           zIndex: 1000,
           fontSize: '14px',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          transition: 'all 0.3s ease'
         }}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
+        <div style={{ width: '10px', height: '10px', backgroundColor: '#4ade80', borderRadius: '50%' }}></div>
         デコピン（AI）に相談する
       </button>
       <AIChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
