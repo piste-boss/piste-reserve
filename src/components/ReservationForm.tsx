@@ -4,12 +4,13 @@ interface Props {
     onSubmit: (formData: { name: string; email: string; phone: string }) => void;
     onBack: () => void;
     isSubmitting: boolean;
+    initialData?: { name: string; email: string; phone: string };
 }
 
-const ReservationForm: React.FC<Props> = ({ onSubmit, onBack, isSubmitting }) => {
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
+const ReservationForm: React.FC<Props> = ({ onSubmit, onBack, isSubmitting, initialData }) => {
+    const [name, setName] = useState(initialData?.name || '');
+    const [email, setEmail] = useState(initialData?.email || '');
+    const [phone, setPhone] = useState(initialData?.phone || '');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
