@@ -59,7 +59,7 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
             const liff = (await import('@line/liff')).default;
             await liff.init({ liffId: LIFF_ID });
             if (!liff.isLoggedIn()) {
-                liff.login();
+                liff.login({ redirectUri: window.location.href });
                 return;
             }
             const lineProfile = await liff.getProfile();

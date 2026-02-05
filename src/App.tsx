@@ -103,7 +103,7 @@ const App: React.FC = () => {
     try {
       await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) {
-        liff.login();
+        liff.login({ redirectUri: window.location.href });
         return;
       }
       const profileData = await liff.getProfile();
@@ -176,7 +176,10 @@ const App: React.FC = () => {
           <div style={{ width: '80px' }}></div>
           <img
             src={logo} alt="Piste Logo" style={{ height: '60px', cursor: 'pointer' }}
-            onClick={() => setAdminClickCount(prev => (prev + 1 >= 5 ? (setStep('ADMIN'), 0) : prev + 1))}
+            onClick={() => {
+              setStep('MENU');
+              setAdminClickCount(prev => (prev + 1 >= 5 ? (setStep('ADMIN'), 0) : prev + 1));
+            }}
           />
           <div style={{ width: '100px', display: 'flex', justifyContent: 'flex-end' }}>
             {session ? (
