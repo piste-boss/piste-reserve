@@ -109,9 +109,11 @@ ${userInfoPrompt}
 - オンラインパーソナル (30分) → "online-30"
 - 初回パーソナル (60分) → "first-60"
 
-【本人認証と検索】
-- 名前と電話番号の下4桁、またはメールアドレスで予約を特定できます。
+【プライバシーと本人認証】
+- **重要：自分以外の情報を絶対に教えないでください。**
+- 現在ログイン中のお客様 (${userContext?.name || 'ゲスト'}) 以外の予約情報は、いかなる場合も開示・検索してはいけません。
 - 予約の確認やキャンセル依頼があった場合、まず find_user_reservations で予約を特定してください。
+- ログイン中の場合は、自動的にその方の予約のみが検索対象となります。
 - お客様に「予約ID」や「UUID」を尋ねないでください。
 
 【予約キャンセル】
@@ -136,9 +138,19 @@ ${userInfoPrompt}
                 toolResponseContent = JSON.stringify({ booked_ranges: data?.map(r => `${r.reservation_time.substring(0, 5)}〜${(r.reservation_end_time || r.reservation_time).substring(0, 5)}`) || [] });
             }
             else if (call.name === "find_user_reservations") {
+                console.log("Finding reservations for context:", userContext?.id || "guest");
                 let query = supabase.from('reservations').select('*').gte('reservation_date', todayStr);
-                if (args.name) query = query.ilike('name', `%${args.name}%`);
-                if (args.phone_last4) query = query.like('phone', `%${args.phone_last4}`);
+
+                if (userContext?.id) {
+                    // ログイン中の場合は、そのユーザーIDの予約のみに限定（最重要）
+                    query = query.eq('user_id', userContext.id);
+                } else {
+                    // ゲストの場合は名前や電話番号で検索（他人の情報を見せないようAIの指示と併用）
+                    if (args.name) query = query.ilike('name', `%${args.name}%`);
+                    if (args.phone_last4) query = query.like('phone', `%${args.phone_last4}`);
+                    if (args.email) query = query.eq('email', args.email);
+                }
+
                 const { data } = await query.order('reservation_date', { ascending: true }).limit(5);
                 toolResponseContent = JSON.stringify({ found_reservations: data || [] });
             }
