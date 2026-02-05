@@ -14,6 +14,9 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
         fetchReservations();
     }, []);
 
+    const [cancelingId, setCancelingId] = useState<string | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
+
     const fetchReservations = async () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -34,10 +37,19 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
         }
     };
 
-    const handleCancel = async (id: string) => {
+    const handleCancelSubmit = async (id: string) => {
         if (!confirm('予約をキャンセルしてもよろしいですか？')) return;
 
         try {
+            setLoading(true);
+            // 理由があれば先に更新（削除時のWebhook/old_recordに含めるため）
+            if (cancelReason) {
+                await supabase
+                    .from('reservations')
+                    .update({ cancel_reason: cancelReason })
+                    .eq('id', id);
+            }
+
             const { error } = await supabase
                 .from('reservations')
                 .delete()
@@ -45,10 +57,13 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
 
             if (error) throw error;
             alert('予約をキャンセルしました。');
+            setCancelingId(null);
+            setCancelReason('');
             fetchReservations();
         } catch (err) {
             console.error('Cancel error:', err);
             alert('キャンセルに失敗しました。');
+            setLoading(false);
         }
     };
 
@@ -72,7 +87,7 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
 
             <h3 style={{ fontSize: '16px', marginBottom: '15px' }}>現在のご予約</h3>
 
-            {loading ? (
+            {loading && !cancelingId ? (
                 <p>読み込み中...</p>
             ) : reservations.length === 0 ? (
                 <p style={{ textAlign: 'center', padding: '20px', color: 'var(--piste-text-muted)' }}>
@@ -91,21 +106,78 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
                                         {res.reservation_date} {res.reservation_time}〜
                                     </div>
                                 </div>
-                                <button
-                                    style={{
-                                        padding: '6px 12px',
-                                        fontSize: '12px',
-                                        backgroundColor: '#fff',
-                                        color: '#e53e3e',
-                                        border: '1px solid #feb2b2',
-                                        borderRadius: '6px',
-                                        cursor: 'pointer'
-                                    }}
-                                    onClick={() => handleCancel(res.id)}
-                                >
-                                    キャンセル
-                                </button>
+                                {cancelingId !== res.id && (
+                                    <button
+                                        style={{
+                                            padding: '6px 12px',
+                                            fontSize: '12px',
+                                            backgroundColor: '#fff',
+                                            color: '#e53e3e',
+                                            border: '1px solid #feb2b2',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer'
+                                        }}
+                                        onClick={() => setCancelingId(res.id)}
+                                    >
+                                        キャンセル
+                                    </button>
+                                )}
                             </div>
+
+                            {cancelingId === res.id && (
+                                <div style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                                    <label style={{ display: 'block', fontSize: '13px', marginBottom: '8px', color: 'var(--piste-text-muted)' }}>
+                                        キャンセル理由をご記入ください（任意）
+                                    </label>
+                                    <textarea
+                                        value={cancelReason}
+                                        onChange={(e) => setCancelReason(e.target.value)}
+                                        placeholder="例：急用が入ったため、等"
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            borderRadius: '8px',
+                                            border: '1px solid #ddd',
+                                            fontSize: '14px',
+                                            height: '80px',
+                                            marginBottom: '10px'
+                                        }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <button
+                                            className="btn-primary"
+                                            style={{
+                                                flex: 1,
+                                                backgroundColor: '#e53e3e',
+                                                borderColor: '#e53e3e',
+                                                fontSize: '14px',
+                                                padding: '10px'
+                                            }}
+                                            onClick={() => handleCancelSubmit(res.id)}
+                                        >
+                                            確定する
+                                        </button>
+                                        <button
+                                            className="btn-primary"
+                                            style={{
+                                                flex: 1,
+                                                backgroundColor: '#fff',
+                                                color: 'var(--piste-text-muted)',
+                                                border: '1px solid #ddd',
+                                                fontSize: '14px',
+                                                padding: '10px',
+                                                boxShadow: 'none'
+                                            }}
+                                            onClick={() => {
+                                                setCancelingId(null);
+                                                setCancelReason('');
+                                            }}
+                                        >
+                                            やめる
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>

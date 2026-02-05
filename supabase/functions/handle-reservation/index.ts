@@ -38,7 +38,8 @@ serve(async (req) => {
       } else if (type === 'UPDATE') {
         messageText = `【Piste 予約変更】\n予約内容が変更されました。\n\n新日時: ${dateStr} ${timeStr}〜\n新メニュー: ${menuName}`;
       } else if (type === 'DELETE') {
-        messageText = `【Piste 予約キャンセル】\n予約のキャンセルを承りました。\n\n日時: ${dateStr} ${timeStr}\n\nまたのご利用をお待ちしております。`;
+        const reasonStr = currentRecord.cancel_reason ? `\n理由: ${currentRecord.cancel_reason}` : "";
+        messageText = `【Piste 予約キャンセル】\n予約のキャンセルを承りました。\n\n日時: ${dateStr} ${timeStr}${reasonStr}\n\nまたのご利用をお待ちしております。`;
       }
 
       if (messageText) {

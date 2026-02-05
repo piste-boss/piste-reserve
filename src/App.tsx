@@ -173,7 +173,7 @@ const App: React.FC = () => {
             src={logo} alt="Piste Logo" style={{ height: '60px', cursor: 'pointer' }}
             onClick={() => setAdminClickCount(prev => (prev + 1 >= 5 ? (setStep('ADMIN'), 0) : prev + 1))}
           />
-          <div style={{ width: '80px', display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ width: '100px', display: 'flex', justifyContent: 'flex-end' }}>
             {session ? (
               <button
                 onClick={() => nextStep('MYPAGE')}
@@ -200,7 +200,7 @@ const App: React.FC = () => {
             ) : (
               <button
                 onClick={() => nextStep('AUTH')}
-                style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #ddd', borderRadius: '20px', cursor: 'pointer', color: '#555', fontWeight: 'bold' }}
+                style={{ padding: '8px 20px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #ddd', borderRadius: '20px', cursor: 'pointer', color: '#555', fontWeight: 'bold' }}
               >
                 ログイン
               </button>
@@ -214,8 +214,8 @@ const App: React.FC = () => {
           <div className="card">
             {!session && (
               <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', border: '1px solid #eee' }}>
-                💡 ログインすると便利です
-                <button onClick={() => nextStep('AUTH')} style={{ color: 'var(--piste-green)', border: 'none', background: 'none', fontWeight: 'bold' }}>ログインへ</button>
+                💡 ログインするとスムーズに予約できます
+                <button onClick={() => nextStep('AUTH')} style={{ color: 'var(--piste-green)', border: 'none', background: 'none', fontWeight: 'bold', marginLeft: '5px' }}>ログインへ</button>
               </div>
             )}
             <h2 style={{ marginBottom: '20px', fontSize: '18px' }}>メニューを選択</h2>

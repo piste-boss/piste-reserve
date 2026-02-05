@@ -66,7 +66,8 @@ const tools = [
                         id: { type: SchemaType.STRING, description: "予約ID(UUID)" },
                         name: { type: SchemaType.STRING, description: "名前" },
                         date: { type: SchemaType.STRING, description: "日付" },
-                        time: { type: SchemaType.STRING, description: "時間" }
+                        time: { type: SchemaType.STRING, description: "時間" },
+                        cancel_reason: { type: SchemaType.STRING, description: "キャンセル理由（任意）" }
                     },
                     required: ["id", "name", "date", "time"]
                 }
@@ -109,7 +110,7 @@ const AIChat: React.FC<Props> = ({ isOpen, onClose }) => {
           【本人認証と検索】
           - 「名前」＋「電話番号の下4桁」があれば照会(find_user_reservations)可能です。
           - お客様から予約の確認やキャンセルの依頼があった場合、まずは \`find_user_reservations\` で予約を特定してください。
-          - キャンセル希望の際、対象の予約が1件に特定できている場合は、その詳細（日時など）を提示し、お客様の最終確認（「はい、おねがいします」など）を得てから \`cancel_reservation\` を実行してください。
+          - キャンセル希望の際、対象の予約が1件に特定できている場合は、その詳細（日時など）を提示し、差し支えなければキャンセル理由（任意）を伺った上で、お客様の最終確認（「はい、おねがいします」など）を得てから \`cancel_reservation\` を実行してください。無理に理由を聞き出す必要はありません。
           - 複数の予約が見つかった場合は、どの予約をキャンセルするか（例：2月5日の分、など）をお客様に確認してください。
           - お客様に「予約ID」や「UUID」を尋ねたり、それらの存在を明かしたりしないでください。それらはシステム内部で処理するためのもので、お客様には不要な情報です。
           - 現在の日付: ${todayStr}
@@ -209,6 +210,12 @@ const AIChat: React.FC<Props> = ({ isOpen, onClose }) => {
                             console.error("Fetch before delete error:", fetchError);
                             toolResponseContent = JSON.stringify({ error: "予約データの取得に失敗しました。" });
                         } else {
+                            // キャンセル理由があれば先に更新
+                            if (args.cancel_reason) {
+                                await supabase.from('reservations').update({ cancel_reason: args.cancel_reason }).eq('id', args.id);
+                                // メッセージ通知用にrecordにも反映
+                                (record as any).cancel_reason = args.cancel_reason;
+                            }
                             const { error: deleteError } = await supabase.from('reservations').delete().eq('id', args.id);
                             if (!deleteError) {
                                 console.log("Successfully deleted from DB:", args.id);
