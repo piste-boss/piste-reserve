@@ -62,13 +62,10 @@ const tools = [
                 parameters: {
                     type: "OBJECT",
                     properties: {
-                        id: { type: "STRING" },
-                        name: { type: "STRING" },
-                        date: { type: "STRING" },
-                        time: { type: "STRING" },
-                        cancel_reason: { type: "STRING" }
+                        id: { type: "STRING", description: "キャンセルする予約のID(UUID)" },
+                        cancel_reason: { type: "STRING", description: "キャンセルの理由（任意）" }
                     },
-                    required: ["id", "name", "date", "time"]
+                    required: ["id"]
                 }
             }
         ]
@@ -116,8 +113,10 @@ ${userInfoPrompt}
 - ログイン中の場合は、自動的にその方の予約のみが検索対象となります。
 - お客様に「予約ID」や「UUID」を尋ねないでください。
 
-【予約キャンセル】
-- 対象の予約が特定できたら、その詳細（日時など）を提示し、差し支えなければキャンセル理由（任意）を伺った上で、お客様の最終確認を得てから cancel_reservation を実行してください。
+【予約キャンセル：最重要】
+- お客様からキャンセルの確定を得たら、**必ず直ちに cancel_reservation を実行してください**。
+- 「キャンセルを承りました」と答える前に、必ずツールを実行して成功（Success）を確認してください。
+- 予約を特定するため、まず find_user_reservations で予約IDを取得し、そのIDを cancel_reservation に正確に渡してください。
 
 今日の日付: ${todayStr}`
         });
@@ -171,13 +170,23 @@ ${userInfoPrompt}
                 toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success", message: "予約を登録しました。" });
             }
             else if (call.name === "cancel_reservation") {
-                console.log("Canceling reservation:", args);
+                console.log("Canceling reservation with ID:", args.id);
+
+                // 理由があれば先に更新してから削除（Webhookで理由を送るため）
                 if (args.cancel_reason) {
-                    await supabase.from('reservations').update({ cancel_reason: args.cancel_reason }).eq('id', args.id);
+                    const { error: upError } = await supabase.from('reservations').update({ cancel_reason: args.cancel_reason }).eq('id', args.id);
+                    if (upError) console.error("Cancel reason update error:", upError);
                 }
-                const { error } = await supabase.from('reservations').delete().eq('id', args.id);
-                if (error) console.error("Cancel error:", error);
-                toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success", message: "予約をキャンセルしました。" });
+
+                const { error: delError, status } = await supabase.from('reservations').delete().eq('id', args.id);
+
+                if (delError) {
+                    console.error("Delete error:", delError);
+                    toolResponseContent = JSON.stringify({ error: delError.message });
+                } else {
+                    console.log("Delete success status:", status);
+                    toolResponseContent = JSON.stringify({ status: "Success", message: "予約をキャンセルしました。" });
+                }
             }
 
             const toolCombinedResult = await chat.sendMessage([{
