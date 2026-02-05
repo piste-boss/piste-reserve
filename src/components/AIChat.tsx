@@ -20,7 +20,7 @@ interface Props {
 
 const AIChat: React.FC<Props> = ({ isOpen, onClose, lineUserId, userContext }) => {
     const [messages, setMessages] = useState<Message[]>([
-        { role: 'model', text: '空き状況を教えて等、お気軽にお声かけ下さい\n\nPisteのAI予約コンシェルジュ、デコピンです。予約の空き状況確認やキャンセル、確認などを承ります。何かお手伝いしましょうか？' }
+        { role: 'model', text: 'PisteのAI予約コンシェルジュ、デコピンです。予約の空き状況確認やキャンセル、確認などを承ります。何かお手伝いしましょうか？' }
     ]);
     const [history, setHistory] = useState<any[]>([]);
     const [input, setInput] = useState('');
@@ -80,8 +80,7 @@ const AIChat: React.FC<Props> = ({ isOpen, onClose, lineUserId, userContext }) =
             <div style={{ backgroundColor: 'white', width: '100%', maxWidth: '500px', height: '80vh', borderRadius: '20px 20px 0 0', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'slideUp 0.3s ease' }} onClick={e => e.stopPropagation()}>
                 <div style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--piste-dark-blue)', color: 'white' }}>
                     <div>
-                        <div style={{ fontWeight: 'bold' }}>PisteのAIコンシェルジュ デコピン</div>
-                        <div style={{ fontSize: '12px', opacity: 0.8 }}>リアルタイム予約管理システム</div>
+                        <div style={{ fontWeight: 'bold' }}>AI予約コンシェルジュ デコピン</div>
                     </div>
                     <button onClick={onClose} style={{ color: 'white', backgroundColor: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer' }}>✕</button>
                 </div>

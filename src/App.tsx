@@ -317,7 +317,7 @@ const App: React.FC = () => {
         onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         <div style={{ width: '10px', height: '10px', backgroundColor: '#4ade80', borderRadius: '50%' }}></div>
-        AI予約コンシェルジュ デコピン
+        デコピン（AI）に予約相談する
       </button>
       <AIChat
         isOpen={isChatOpen}
