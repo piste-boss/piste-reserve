@@ -11,6 +11,7 @@ interface Props {
     onClose: () => void;
     lineUserId?: string;
     userContext?: {
+        id?: string;
         name?: string;
         email?: string;
         phone?: string;
