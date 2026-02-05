@@ -324,6 +324,7 @@ const App: React.FC = () => {
         onClose={() => setIsChatOpen(false)}
         lineUserId={profile?.line_user_id}
         userContext={profile ? {
+          id: session?.user.id,
           name: profile.name,
           email: session?.user.email,
           phone: profile.phone

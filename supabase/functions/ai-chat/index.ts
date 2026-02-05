@@ -145,6 +145,7 @@ ${userInfoPrompt}
             else if (call.name === "add_reservation") {
                 console.log("Adding reservation for:", args.name || userContext?.name);
                 const { error } = await supabase.from('reservations').insert([{
+                    user_id: userContext?.id,
                     name: args.name || userContext?.name,
                     email: args.email || userContext?.email,
                     phone: args.phone || userContext?.phone,
