@@ -96,7 +96,12 @@ serve(async (req) => {
 
 ${userInfoPrompt}
 
-【最優先：メニューIDの扱い】
+【最重要：ダブルブッキングの禁止】
+- **重複予約（ダブルブッキング）は絶対に禁止です。**
+- 予約を登録（add_reservation）する前に、必ず get_booked_times を実行して、その日時の空き状況を確認してください。
+- 既にお客様が入っている時間帯には、絶対に予約を入れないでください。空いている別の時間を提案してください。
+
+【メニューIDの扱い】
 お客様に「メニューID」を尋ねたり、システム上のID名（personal-20など）を伝えたりしないでください。
 お客様の希望を聞き、以下のルールで自動的にIDを変換して処理してください。
 
@@ -154,20 +159,37 @@ ${userInfoPrompt}
                 toolResponseContent = JSON.stringify({ found_reservations: data || [] });
             }
             else if (call.name === "add_reservation") {
-                console.log("Adding reservation for:", args.name || userContext?.name);
-                const { error } = await supabase.from('reservations').insert([{
-                    user_id: userContext?.id,
-                    name: args.name || userContext?.name,
-                    email: args.email || userContext?.email,
-                    phone: args.phone || userContext?.phone,
-                    reservation_date: args.date,
-                    reservation_time: args.time,
-                    menu_id: args.menu_id,
-                    source: 'ai-dekopin',
-                    line_user_id: lineUserId
-                }]);
-                if (error) console.error("Add reservation error:", error);
-                toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success", message: "予約を登録しました。" });
+                console.log("Checking for double booking:", args.date, args.time);
+
+                // バックエンド側での重複最終チェック（安全策）
+                const { data: existing } = await supabase
+                    .from('reservations')
+                    .select('id')
+                    .eq('reservation_date', args.date)
+                    .eq('reservation_time', args.time);
+
+                if (existing && existing.length > 0) {
+                    console.log("Double booking detected!");
+                    toolResponseContent = JSON.stringify({
+                        error: "Double booking error",
+                        message: "申し訳ありません。その時間は直前に別のお客様の予約が入りました。別の時間を提案してください。"
+                    });
+                } else {
+                    console.log("Adding reservation for:", args.name || userContext?.name);
+                    const { error } = await supabase.from('reservations').insert([{
+                        user_id: userContext?.id,
+                        name: args.name || userContext?.name,
+                        email: args.email || userContext?.email,
+                        phone: args.phone || userContext?.phone,
+                        reservation_date: args.date,
+                        reservation_time: args.time,
+                        menu_id: args.menu_id,
+                        source: 'ai-dekopin',
+                        line_user_id: lineUserId
+                    }]);
+                    if (error) console.error("Add reservation error:", error);
+                    toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success", message: "予約を登録しました。" });
+                }
             }
             else if (call.name === "cancel_reservation") {
                 console.log("Canceling reservation with ID:", args.id);
