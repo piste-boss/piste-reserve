@@ -173,13 +173,38 @@ const App: React.FC = () => {
             src={logo} alt="Piste Logo" style={{ height: '60px', cursor: 'pointer' }}
             onClick={() => setAdminClickCount(prev => (prev + 1 >= 5 ? (setStep('ADMIN'), 0) : prev + 1))}
           />
-          <div style={{ width: '80px' }}>
-            <button
-              onClick={() => nextStep(session ? 'MYPAGE' : 'AUTH')}
-              style={{ padding: '8px 12px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #ddd', borderRadius: '20px', cursor: 'pointer' }}
-            >
-              {session ? 'マイページ' : 'ログイン'}
-            </button>
+          <div style={{ width: '80px', display: 'flex', justifyContent: 'flex-end' }}>
+            {session ? (
+              <button
+                onClick={() => nextStep('MYPAGE')}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  border: '1px solid #ddd',
+                  backgroundColor: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  padding: 0,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                }}
+                title="マイページ"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={() => nextStep('AUTH')}
+                style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #ddd', borderRadius: '20px', cursor: 'pointer', color: '#555', fontWeight: 'bold' }}
+              >
+                ログイン
+              </button>
+            )}
           </div>
         </div>
       </header>
