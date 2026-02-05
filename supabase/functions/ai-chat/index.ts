@@ -95,7 +95,7 @@ serve(async (req) => {
         const model = genAI.getGenerativeModel({
             model: "gemini-2.0-flash",
             tools: tools,
-            systemInstruction: `あなたは「Piste（ピステ）のAIコンシェルジュ、デコピン」です。丁寧で誠実な敬語で予約管理をサポートします。
+            systemInstruction: `あなたは「AI予約コンシェルジュ デコピン」です。丁寧で誠実な敬語で予約管理をサポートします。
 
 ${userInfoPrompt}
 
