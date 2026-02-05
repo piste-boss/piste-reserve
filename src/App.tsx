@@ -27,10 +27,16 @@ const MENUS = [
   { id: 'first-60', label: '初回パーソナル', duration: 60 },
 ];
 
+import liff from '@line/liff';
+
+const LIFF_ID = "2009052718-9rclRq3Z";
+
 const App: React.FC = () => {
   const [step, setStep] = useState<Step>('MENU');
   const [adminClickCount, setAdminClickCount] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
+  const [isLinked, setIsLinked] = useState(false);
   const [data, setData] = useState<ReservationData>({
     menu: '',
     date: '',
@@ -54,12 +60,64 @@ const App: React.FC = () => {
     nextStep('FORM');
   };
 
+  const [lastReservationId, setLastReservationId] = useState<string | null>(null);
+
+  // LINE連携処理
+  const handleLineLinking = async () => {
+    if (!lastReservationId) return;
+    setIsLinking(true);
+
+    try {
+      await liff.init({ liffId: LIFF_ID });
+
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+
+      const profile = await liff.getProfile();
+      const lineUserId = profile.userId;
+
+      // Supabaseの予約レコードを更新
+      const { error } = await supabase
+        .from('reservations')
+        .update({ line_user_id: lineUserId })
+        .eq('id', lastReservationId);
+
+      if (error) throw error;
+
+      setIsLinked(true);
+      alert("LINE連携が完了しました！通知をお送りします。");
+    } catch (err) {
+      console.error("LINE連携エラー:", err);
+      alert("LINE連携に失敗しました。時間をおいて再度お試しください。");
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
+  // ログイン後のリダイレクト処理（ページ読み込み時に実行）
+  useEffect(() => {
+    const initLiff = async () => {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (liff.isLoggedIn()) {
+          // ログイン直後かチェックするためにURLパラメータ等を見ても良いが、
+          // ここでは単純にプロフィールが取れれば連携処理を試みるパターンもあり
+        }
+      } catch (e) {
+        console.error("LIFF Init Error", e);
+      }
+    };
+    initLiff();
+  }, []);
+
   const handleFormSubmit = async (formData: { name: string; email: string; phone: string }) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
-      // 念のため、同じ時間・同じ名前の予約が既に存在するかチェック
+      // 既存チェック
       const { data: existing } = await supabase
         .from('reservations')
         .select('id')
@@ -69,7 +127,7 @@ const App: React.FC = () => {
         .limit(1);
 
       if (existing && existing.length > 0) {
-        console.log('Duplicate reservation detected, skipping insert');
+        setLastReservationId(existing[0].id);
         setData({ ...data, ...formData });
         nextStep('COMPLETE');
         return;
@@ -85,14 +143,19 @@ const App: React.FC = () => {
         source: 'web'
       };
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('reservations')
-        .insert([reservation]);
+        .insert([reservation])
+        .select();
 
       if (error) {
         console.error('Reservation Error:', error);
         alert('予約の保存に失敗しました。時間をおいて再度お試しください。');
         return;
+      }
+
+      if (inserted && inserted.length > 0) {
+        setLastReservationId(inserted[0].id);
       }
 
       setData({ ...data, ...formData });
@@ -195,9 +258,55 @@ const App: React.FC = () => {
           <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
             <div style={{ fontSize: '48px', marginBottom: '20px' }}>✅</div>
             <h2 style={{ marginBottom: '10px' }}>予約が完了しました！</h2>
-            <p style={{ color: 'var(--piste-text-muted)', fontSize: '14px', marginBottom: '30px' }}>
-              ご入力いただいたメールアドレスに確認メールを送信しました。
+            <p style={{ color: 'var(--piste-text-muted)', fontSize: '14px', marginBottom: '20px' }}>
+              当日お待ちしております。
             </p>
+
+            {!isLinked ? (
+              <div className="card" style={{
+                textAlign: 'center',
+                background: '#f0fff4',
+                border: '1px solid #c6f6d5',
+                padding: '20px',
+                marginBottom: '20px'
+              }}>
+                <h3 style={{ fontSize: '16px', color: '#2f855a', marginBottom: '10px' }}>LINEでリマインドを受け取る</h3>
+                <p style={{ fontSize: '12px', color: '#48bb78', marginBottom: '15px' }}>
+                  予約の3時間前にLINEで通知をお送りします
+                </p>
+                <button
+                  className="btn-primary"
+                  style={{
+                    backgroundColor: '#06C755',
+                    borderColor: '#06C755',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    opacity: isLinking ? 0.7 : 1
+                  }}
+                  disabled={isLinking}
+                  onClick={handleLineLinking}
+                >
+                  <span style={{ fontSize: '20px' }}>LINE</span> {isLinking ? '連携中...' : '通知を有効にする'}
+                </button>
+              </div>
+            ) : (
+              <div className="card" style={{
+                textAlign: 'center',
+                background: '#f0fff4',
+                border: '1px solid #c6f6d5',
+                padding: '15px',
+                marginBottom: '20px',
+                color: '#2f855a',
+                fontSize: '14px',
+                fontWeight: 'bold'
+              }}>
+                ✨ LINE通知を有効にしました！
+              </div>
+            )}
+
             <div className="card" style={{ textAlign: 'left', fontSize: '14px', background: '#f8f9fa' }}>
               <div style={{ marginBottom: '5px' }}><strong>メニュー:</strong> {MENUS.find(m => m.id === data.menu)?.label}</div>
               <div style={{ marginBottom: '5px' }}><strong>日付:</strong> {data.date}</div>
@@ -206,11 +315,14 @@ const App: React.FC = () => {
             <button className="btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => {
               setData({ menu: '', date: '', time: '', name: '', phone: '', email: '' });
               setStep('MENU');
+              setLastReservationId(null);
+              setIsLinked(false);
             }}>
               トップに戻る
             </button>
           </div>
         )}
+
         {step === 'ADMIN' && (
           <div>
             <AdminDashboard />
@@ -273,5 +385,8 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+export default App;
+
 
 export default App;
