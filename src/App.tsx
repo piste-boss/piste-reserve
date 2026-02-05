@@ -226,7 +226,7 @@ const App: React.FC = () => {
                 <button onClick={() => nextStep('AUTH')} style={{ color: 'var(--piste-green)', border: 'none', background: 'none', fontWeight: 'bold', marginLeft: '5px' }}>ログインへ</button>
               </div>
             )}
-            <h2 style={{ marginBottom: '20px', fontSize: '18px' }}>メニューを選択</h2>
+            <h2 style={{ marginBottom: '20px', fontSize: '18px' }}>ご希望のご予約メニューを選択してください</h2>
             <select
               className="card" style={{ width: '100%', padding: '15px', fontSize: '16px' }}
               value={data.menu} onChange={(e) => setData({ ...data, menu: e.target.value })}
@@ -291,6 +291,29 @@ const App: React.FC = () => {
 
         {step === 'ADMIN' && <AdminDashboard />}
       </main>
+      <button
+        onClick={() => setIsChatOpen(true)}
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          padding: '12px 24px',
+          borderRadius: '30px',
+          backgroundColor: 'var(--piste-green)',
+          color: 'white',
+          border: 'none',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          fontSize: '14px',
+          fontWeight: 'bold'
+        }}
+      >
+        デコピン（AI）に相談する
+      </button>
       <AIChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
