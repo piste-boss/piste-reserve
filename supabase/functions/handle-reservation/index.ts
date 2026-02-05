@@ -3,7 +3,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwYgs-NLD0Jvqi3v3oWsa0uWGHJb-HbIvoVsHE6Wjqzns-Y6X-UJQqr3HstZ1-8ZeEL6A/exec";
 const LINE_CHANNEL_ACCESS_TOKEN = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
 
-const ADMIN_LINE_USER_ID = Deno.env.get("ADMIN_LINE_USER_ID");
+const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL");
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "onboarding@resend.dev";
 
 serve(async (req) => {
   try {
@@ -33,6 +35,7 @@ serve(async (req) => {
     const menuName = getMenuName(currentRecord.menu_id);
     const userName = currentRecord.name || "不明";
     const userPhone = currentRecord.phone || "不明";
+    const userEmail = currentRecord.email || "不明";
 
     // ユーザーへのLINE通知
     const lineUserId = currentRecord.line_user_id;
@@ -52,20 +55,25 @@ serve(async (req) => {
       }
     }
 
-    // 管理者へのLINE通知
-    if (ADMIN_LINE_USER_ID && LINE_CHANNEL_ACCESS_TOKEN) {
-      let adminMsg = "";
+    // 管理者へのメール通知
+    if (ADMIN_EMAIL && RESEND_API_KEY) {
+      let subject = "";
+      let emailBody = "";
+
       if (type === 'INSERT') {
-        adminMsg = `【管理者通知：予約が入りました】\n新規予約が確定しました。\n\nお名前: ${userName} 様\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n電話: ${userPhone}`;
+        subject = `【Piste】予約が入りました（${userName} 様）`;
+        emailBody = `予約が入りました。\n\nお名前: ${userName} 様\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n電話: ${userPhone}\nメール: ${userEmail}`;
       } else if (type === 'UPDATE') {
-        adminMsg = `【管理者通知：予約変更】\n予約内容が変更されました。\n\nお名前: ${userName} 様\n変更後日時: ${dateStr} ${timeStr}〜\n変更後メニュー: ${menuName}`;
+        subject = `【Piste】予約変更のお知らせ（${userName} 様）`;
+        emailBody = `予約内容が変更されました。\n\nお名前: ${userName} 様\n変更後日時: ${dateStr} ${timeStr}〜\n変更後メニュー: ${menuName}\n電話: ${userPhone}`;
       } else if (type === 'DELETE') {
-        const reasonStr = currentRecord.cancel_reason ? `\n理由: ${currentRecord.cancel_reason}` : "なし";
-        adminMsg = `【管理者通知：キャンセル】\n予約がキャンセルされました。\n\nお名前: ${userName} 様\n日時: ${dateStr} ${timeStr}\n理由: ${reasonStr}`;
+        const reasonStr = currentRecord.cancel_reason ? `理由: ${currentRecord.cancel_reason}` : "理由: なし";
+        subject = `【Piste】予約キャンセルのお知らせ（${userName} 様）`;
+        emailBody = `予約がキャンセルされました。\n\nお名前: ${userName} 様\n予約されていた日時: ${dateStr} ${timeStr}\nメニュー: ${menuName}\n${reasonStr}`;
       }
 
-      if (adminMsg) {
-        await sendLineMessage(ADMIN_LINE_USER_ID, adminMsg);
+      if (subject && emailBody) {
+        await sendEmail(ADMIN_EMAIL, subject, emailBody);
       }
     }
 
@@ -81,6 +89,28 @@ serve(async (req) => {
     })
   }
 })
+
+async function sendEmail(to: string, subject: string, text: string) {
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${RESEND_API_KEY}`
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: [to],
+        subject: subject,
+        text: text
+      })
+    });
+    const data = await res.json();
+    console.log("Email送信結果:", data);
+  } catch (e) {
+    console.error("Email送信失敗:", e);
+  }
+}
 
 function getMenuName(id: string) {
   const menus: Record<string, string> = {
