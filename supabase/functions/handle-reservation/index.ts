@@ -3,6 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwYgs-NLD0Jvqi3v3oWsa0uWGHJb-HbIvoVsHE6Wjqzns-Y6X-UJQqr3HstZ1-8ZeEL6A/exec";
 const LINE_CHANNEL_ACCESS_TOKEN = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
 
+const ADMIN_LINE_USER_ID = Deno.env.get("ADMIN_LINE_USER_ID");
+
 serve(async (req) => {
   try {
     const body = await req.json()
@@ -25,14 +27,17 @@ serve(async (req) => {
       }
     }
 
-    // LINE通知ロジック
+    // 基本情報
+    const dateStr = currentRecord.reservation_date;
+    const timeStr = currentRecord.reservation_time;
+    const menuName = getMenuName(currentRecord.menu_id);
+    const userName = currentRecord.name || "不明";
+    const userPhone = currentRecord.phone || "不明";
+
+    // ユーザーへのLINE通知
     const lineUserId = currentRecord.line_user_id;
     if (lineUserId && LINE_CHANNEL_ACCESS_TOKEN) {
       let messageText = "";
-      const dateStr = currentRecord.reservation_date;
-      const timeStr = currentRecord.reservation_time;
-      const menuName = getMenuName(currentRecord.menu_id);
-
       if (type === 'INSERT') {
         messageText = `【Piste 予約確定】\nご予約ありがとうございます。\n\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n\n当日お会いできるのを楽しみにしております。`;
       } else if (type === 'UPDATE') {
@@ -44,6 +49,23 @@ serve(async (req) => {
 
       if (messageText) {
         await sendLineMessage(lineUserId, messageText);
+      }
+    }
+
+    // 管理者へのLINE通知
+    if (ADMIN_LINE_USER_ID && LINE_CHANNEL_ACCESS_TOKEN) {
+      let adminMsg = "";
+      if (type === 'INSERT') {
+        adminMsg = `【管理者通知：予約が入りました】\n新規予約が確定しました。\n\nお名前: ${userName} 様\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n電話: ${userPhone}`;
+      } else if (type === 'UPDATE') {
+        adminMsg = `【管理者通知：予約変更】\n予約内容が変更されました。\n\nお名前: ${userName} 様\n変更後日時: ${dateStr} ${timeStr}〜\n変更後メニュー: ${menuName}`;
+      } else if (type === 'DELETE') {
+        const reasonStr = currentRecord.cancel_reason ? `\n理由: ${currentRecord.cancel_reason}` : "なし";
+        adminMsg = `【管理者通知：キャンセル】\n予約がキャンセルされました。\n\nお名前: ${userName} 様\n日時: ${dateStr} ${timeStr}\n理由: ${reasonStr}`;
+      }
+
+      if (adminMsg) {
+        await sendLineMessage(ADMIN_LINE_USER_ID, adminMsg);
       }
     }
 
