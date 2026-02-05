@@ -33,7 +33,7 @@ const LIFF_ID = "2009052718-9rclRq3Z";
 
 const App: React.FC = () => {
   const [step, setStep] = useState<Step>('MENU');
-  const [adminClickCount, setAdminClickCount] = useState(0);
+  const [, setAdminClickCount] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [isLinked, setIsLinked] = useState(false);
@@ -273,7 +273,14 @@ const App: React.FC = () => {
           <div className="card" style={{ textAlign: 'center' }}>
             <h2>予約完了！</h2>
             {!isLinked && (
-              <button className="btn-primary" style={{ backgroundColor: '#06C755', marginTop: '20px' }} onClick={handleLineLinking}>LINE連携する</button>
+              <button
+                className="btn-primary"
+                style={{ backgroundColor: '#06C755', marginTop: '20px' }}
+                onClick={handleLineLinking}
+                disabled={isLinking}
+              >
+                {isLinking ? '連携中...' : 'LINE連携する'}
+              </button>
             )}
             <button className="btn-primary" style={{ width: '100%', marginTop: '20px' }} onClick={() => nextStep('MENU')}>トップへ</button>
           </div>
