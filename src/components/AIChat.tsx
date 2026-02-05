@@ -20,7 +20,7 @@ interface Props {
 
 const AIChat: React.FC<Props> = ({ isOpen, onClose, lineUserId, userContext }) => {
     const [messages, setMessages] = useState<Message[]>([
-        { role: 'model', text: '空き状況を教えて等、お気軽にお声かけ下さい' }
+        { role: 'model', text: 'AI予約コンシェルジュ デコピンです。空き状況を教えて等、お気軽にお声かけ下さい' }
     ]);
     const [history, setHistory] = useState<any[]>([]);
     const [input, setInput] = useState('');
