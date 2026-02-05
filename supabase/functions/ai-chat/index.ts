@@ -93,11 +93,13 @@ serve(async (req) => {
 お客様に「メニューID」を尋ねたり、システム上のID名（personal-20など）を伝えたりしないでください。
 お客様の希望を聞き、以下のルールで自動的にIDを変換して処理してください。
 
-- パーソナルトレーニング (20分) → "personal-20"
+- パーソナルトレーニング (20分) → "personal-20" （！重要：通常のパーソナルは20分のみです）
 - 無料体験 (60分) → "trial-60"
 - 入会手続き (30分) → "entry-30"
 - オンラインパーソナル (30分) → "online-30"
-- 初回パーソナル (60分) → "first-60"
+- 初回パーソナル (60分) → "first-60" （！重要：初回の方限定の60分メニューです）
+
+「パーソナルトレーニング」と言われた場合は、自動的に20分のメニューとして案内してください。60分を希望される場合は「初回パーソナル」または「無料体験」であることを確認してください。
 
 【本人認証と検索】
 - 名前と電話番号の下4桁、またはメールアドレスで予約を特定できます。
@@ -133,15 +135,27 @@ serve(async (req) => {
                 toolResponseContent = JSON.stringify({ found_reservations: data || [] });
             }
             else if (call.name === "add_reservation") {
-                const { error } = await supabase.from('reservations').insert([{ ...args, source: 'ai-dekopin' }]);
-                toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success" });
+                console.log("Adding reservation:", args);
+                const { error } = await supabase.from('reservations').insert([{
+                    name: args.name,
+                    email: args.email,
+                    phone: args.phone,
+                    reservation_date: args.date,
+                    reservation_time: args.time,
+                    menu_id: args.menu_id,
+                    source: 'ai-dekopin'
+                }]);
+                if (error) console.error("Add reservation error:", error);
+                toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success", message: "予約を登録しました。" });
             }
             else if (call.name === "cancel_reservation") {
+                console.log("Canceling reservation:", args);
                 if (args.cancel_reason) {
                     await supabase.from('reservations').update({ cancel_reason: args.cancel_reason }).eq('id', args.id);
                 }
                 const { error } = await supabase.from('reservations').delete().eq('id', args.id);
-                toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success" });
+                if (error) console.error("Cancel error:", error);
+                toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success", message: "予約をキャンセルしました。" });
             }
 
             const toolCombinedResult = await chat.sendMessage([{
