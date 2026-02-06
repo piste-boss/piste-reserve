@@ -121,6 +121,29 @@ serve(async (req) => {
       }
     }
 
+    // ユーザーへのメール通知 (LINE連携していない場合)
+    if (!lineUserId && userEmail !== "不明" && RESEND_API_KEY) {
+      let userSubject = "";
+      let userBody = "";
+
+      if (type === 'INSERT') {
+        userSubject = `【Piste】予約確定のお知らせ`;
+        userBody = `${userName} 様\n\nご予約が確定いたしました。\n\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n\n当日お会いできるのを楽しみにしております。\n\n------------------\nPiste (ピスト)\nサイト: https://piste-gym.com`;
+      } else if (type === 'UPDATE') {
+        userSubject = `【Piste】予約内容変更のお知らせ`;
+        userBody = `${userName} 様\n\n予約内容の変更を承りました。\n\n変更後日時: ${dateStr} ${timeStr}〜\n変更後メニュー: ${menuName}\n\n当日お待ちしております。\n\n------------------\nPiste (ピスト)\nサイト: https://piste-gym.com`;
+      } else if (type === 'DELETE') {
+        const reasonStr = currentRecord.cancel_reason ? `理由: ${currentRecord.cancel_reason}` : "";
+        userSubject = `【Piste】予約キャンセル承りのお知らせ`;
+        userBody = `${userName} 様\n\n予約のキャンセルを承りました。またのご利用をお待ちしております。\n\nキャンセル日時: ${dateStr} ${timeStr}\n${reasonStr}\n\n------------------\nPiste (ピスト)\nサイト: https://piste-gym.com`;
+      }
+
+      if (userSubject && userBody) {
+        console.log(`ユーザー宛メール送信開始: ${userEmail}`);
+        await sendEmail(userEmail, userSubject, userBody);
+      }
+    }
+
     return new Response(JSON.stringify({ message: "Success" }), {
       headers: { "Content-Type": "application/json" },
       status: 200,
