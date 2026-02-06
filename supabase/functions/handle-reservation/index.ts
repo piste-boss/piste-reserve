@@ -12,6 +12,23 @@ serve(async (req) => {
     const body = await req.json()
     const { type, record, old_record } = body
 
+    // UPDATE時の重複通知・不要通知を防ぐチェック
+    if (type === 'UPDATE') {
+      const isDateChanged = record.reservation_date !== old_record.reservation_date;
+      const isTimeChanged = record.reservation_time !== old_record.reservation_time;
+      const isMenuChanged = record.menu_id !== old_record.menu_id;
+
+      // 日時やメニューに変更がない場合は、通知をスキップ
+      // (キャンセル理由の更新や、Google Event IDの保存などの内部更新を無視するため)
+      if (!isDateChanged && !isTimeChanged && !isMenuChanged) {
+        console.log("重要な変更がないため、通知をスキップします。");
+        return new Response(JSON.stringify({ message: "Update skipped - no significant changes" }), {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+    }
+
     // 実際に処理するレコードを選択（削除時はold_recordを使用）
     const currentRecord = type === 'DELETE' ? old_record : record
     console.log(`予約データ検知 [${type}]:`, currentRecord.id, currentRecord.source)
