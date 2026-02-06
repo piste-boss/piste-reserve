@@ -19,13 +19,32 @@ serve(async (req) => {
     // GASへの同期（既存ロジック維持）
     if (currentRecord.source !== 'google-manual') {
       try {
-        await fetch(GAS_WEBHOOK_URL, {
+        console.log("GAS送信開始:", GAS_WEBHOOK_URL);
+        const gasRes = await fetch(GAS_WEBHOOK_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...currentRecord, type: type?.toLowerCase() }),
-        })
+        });
+        const gasData = await gasRes.json();
+        console.log(`GAS送信結果:`, gasData);
+
+        // GASが eventId を返してきた場合、Supabaseを更新
+        if (type === 'INSERT' && gasData.eventId) {
+          const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const supabase = createClient(supabaseUrl, supabaseKey);
+
+          const { error: updateError } = await supabase
+            .from('reservations')
+            .update({ google_event_id: gasData.eventId })
+            .eq('id', currentRecord.id);
+
+          if (updateError) console.error("EventID更新失敗:", updateError);
+          else console.log("EventID更新成功:", gasData.eventId);
+        }
       } catch (e) {
-        console.error("GAS送信エラー:", e)
+        console.error("GAS送信・更新エラー:", e);
       }
     }
 

@@ -97,12 +97,44 @@ const App: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const initLiff = async () => {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (liff.isLoggedIn()) {
+          const profileData = await liff.getProfile();
+          const lineUserId = profileData.userId;
+
+          // リダイレクト後に保留中の連携があれば実行
+          const pendingReservationId = localStorage.getItem('pendingLineLinkReservationId');
+          if (pendingReservationId) {
+            await supabase.from('reservations').update({ line_user_id: lineUserId }).eq('id', pendingReservationId);
+            localStorage.removeItem('pendingLineLinkReservationId');
+            setIsLinked(true);
+            alert("LINE連携が完了しました！");
+          }
+
+          // プロフィールにLINE IDがなければ更新
+          if (session && profile && !profile.line_user_id) {
+            await supabase.from('profiles').update({ line_user_id: lineUserId }).eq('id', session.user.id);
+            setProfile(prev => prev ? { ...prev, line_user_id: lineUserId } : null);
+            setIsLinked(true);
+          }
+        }
+      } catch (err) {
+        console.error("LIFF init error", err);
+      }
+    };
+    initLiff();
+  }, [session, profile]);
+
   const handleLineLinking = async () => {
     if (!lastReservationId) return;
     setIsLinking(true);
     try {
-      await liff.init({ liffId: LIFF_ID });
       if (!liff.isLoggedIn()) {
+        // リダイレクト前に予約IDを保存
+        localStorage.setItem('pendingLineLinkReservationId', lastReservationId);
         liff.login({ redirectUri: window.location.href });
         return;
       }
@@ -141,14 +173,24 @@ const App: React.FC = () => {
         return;
       }
 
+      const selectedMenu = MENUS.find(m => m.id === data.menu);
+      const duration = selectedMenu?.duration || 30;
+
+      const [hours, minutes] = data.time.split(':').map(Number);
+      const startDate = new Date();
+      startDate.setHours(hours, minutes, 0);
+      const endDate = new Date(startDate.getTime() + duration * 60000);
+      const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+
       const reservation = {
         ...formData,
         reservation_date: data.date,
         reservation_time: data.time,
+        reservation_end_time: endTime,
         menu_id: data.menu,
         source: 'web',
         user_id: session?.user.id,
-        line_user_id: profile?.line_user_id
+        line_user_id: profile?.line_user_id || (liff.isLoggedIn() ? liff.getContext()?.userId : null)
       };
 
       const { data: inserted, error } = await supabase.from('reservations').insert([reservation]).select();
@@ -160,7 +202,7 @@ const App: React.FC = () => {
 
       if (inserted && inserted.length > 0) setLastReservationId(inserted[0].id);
       setData({ ...data, ...formData });
-      if (profile?.line_user_id) setIsLinked(true);
+      if (profile?.line_user_id || (liff.isLoggedIn() && liff.getContext()?.userId)) setIsLinked(true);
       nextStep('COMPLETE');
     } catch (err) {
       alert('エラーが発生しました。');
