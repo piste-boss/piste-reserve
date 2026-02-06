@@ -126,16 +126,18 @@ serve(async (req) => {
       let userSubject = "";
       let userBody = "";
 
+      const signature = `\n\n☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆\nPiste（ピステ）\nhttps://piste-i.com\ntel:09099480878\n〒447-0042\n愛知県碧南市中後町3ー3中央ビル1F`;
+
       if (type === 'INSERT') {
         userSubject = `【Piste】予約確定のお知らせ`;
-        userBody = `${userName} 様\n\nご予約が確定いたしました。\n\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n\n当日お会いできるのを楽しみにしております。\n\n------------------\nPiste (ピスト)\nサイト: https://piste-gym.com`;
+        userBody = `${userName} 様\n\nご予約が確定いたしました。\n\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n\n当日お会いできるのを楽しみにしております。${signature}`;
       } else if (type === 'UPDATE') {
         userSubject = `【Piste】予約内容変更のお知らせ`;
-        userBody = `${userName} 様\n\n予約内容の変更を承りました。\n\n変更後日時: ${dateStr} ${timeStr}〜\n変更後メニュー: ${menuName}\n\n当日お待ちしております。\n\n------------------\nPiste (ピスト)\nサイト: https://piste-gym.com`;
+        userBody = `${userName} 様\n\n予約内容の変更を承りました。\n\n変更後日時: ${dateStr} ${timeStr}〜\n変更後メニュー: ${menuName}\n\n当日お待ちしております。${signature}`;
       } else if (type === 'DELETE') {
         const reasonStr = currentRecord.cancel_reason ? `理由: ${currentRecord.cancel_reason}` : "";
         userSubject = `【Piste】予約キャンセル承りのお知らせ`;
-        userBody = `${userName} 様\n\n予約のキャンセルを承りました。またのご利用をお待ちしております。\n\nキャンセル日時: ${dateStr} ${timeStr}\n${reasonStr}\n\n------------------\nPiste (ピスト)\nサイト: https://piste-gym.com`;
+        userBody = `${userName} 様\n\n予約のキャンセルを承りました。またのご利用をお待ちしております。\n\nキャンセル日時: ${dateStr} ${timeStr}\n${reasonStr}${signature}`;
       }
 
       if (userSubject && userBody) {
