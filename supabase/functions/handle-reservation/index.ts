@@ -23,13 +23,21 @@ serve(async (req) => {
         const gasRes = await fetch(GAS_WEBHOOK_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...currentRecord, type: type?.toLowerCase() }),
+          body: JSON.stringify(body), // 構造を変えずにそのまま送る
         });
-        const gasData = await gasRes.json();
-        console.log(`GAS送信結果:`, gasData);
 
-        // GASが eventId を返してきた場合、Supabaseを更新
-        if (type === 'INSERT' && gasData.eventId) {
+        const gasText = await gasRes.text();
+        console.log("GASレスポンス:", gasText);
+
+        let gasData;
+        try {
+          gasData = JSON.parse(gasText);
+        } catch (e) {
+          console.log("GASレスポンスはJSONではありませんでした");
+        }
+
+        // GASが eventId を返してきた場合、または JSON 内に eventId がある場合
+        if (type === 'INSERT' && gasData?.eventId) {
           const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
           const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
           const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
