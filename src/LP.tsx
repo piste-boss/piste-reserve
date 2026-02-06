@@ -39,7 +39,7 @@ const LP: React.FC = () => {
         email: '',
     });
 
-    React.useEffect(() => {
+    useEffect(() => {
         const initLiff = async () => {
             try {
                 await liff.init({ liffId: LIFF_ID });
