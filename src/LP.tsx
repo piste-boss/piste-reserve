@@ -102,7 +102,6 @@ const LP: React.FC = () => {
         setIsSubmitting(true);
 
         try {
-            // 重複チェック
             const { data: existing } = await supabase
                 .from('reservations')
                 .select('id')
@@ -161,55 +160,77 @@ const LP: React.FC = () => {
     };
 
     return (
-        <div className="container">
-            <header style={{ textAlign: 'center', padding: '40px 0' }}>
+        <div className="container" style={{ padding: '0 15px' }}>
+            {/* Minimal Header */}
+            <header style={{
+                textAlign: 'center',
+                padding: '20px 0',
+                marginBottom: step === 'DATE' ? '0' : '20px'
+            }}>
                 <img
                     src={logo}
                     alt="Piste Logo"
-                    style={{ height: '100px', marginBottom: '15px' }}
+                    style={{ height: '50px', objectFit: 'contain' }}
                 />
-                <h1 style={{ color: 'var(--piste-dark-blue)', fontSize: '24px', fontWeight: 'bold', marginBottom: '10px' }}>
-                    無料体験予約フォーム
-                </h1>
-                <p style={{ color: 'var(--piste-text-muted)', fontSize: '15px' }}>
-                    Pisteのトレーニングを無料で体験いただけます。<br />
-                    カレンダーからご希望の日時を選択してください。
-                </p>
             </header>
 
             <main style={{ paddingBottom: '100px' }}>
                 {step === 'DATE' && (
-                    <ReservationCalendar
-                        onSelect={handleDateSelect}
-                    // onBack is not provided, so button won't show
-                    />
+                    <>
+                        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                            <h1 style={{
+                                color: 'var(--piste-dark-blue)',
+                                fontSize: '20px',
+                                fontWeight: '800',
+                                marginBottom: '8px',
+                                letterSpacing: '-0.02em'
+                            }}>
+                                無料体験予約
+                            </h1>
+                            <p style={{ color: 'var(--piste-text-muted)', fontSize: '13px' }}>
+                                カレンダーから希望日を選んでください
+                            </p>
+                        </div>
+                        <ReservationCalendar onSelect={handleDateSelect} />
+                    </>
                 )}
 
                 {step === 'TIME' && (
-                    <ReservationTime
-                        date={data.date}
-                        onSelect={handleTimeSelect}
-                        onBack={() => nextStep('DATE')}
-                    />
+                    <>
+                        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                            <h2 style={{ fontSize: '18px', fontWeight: '700' }}>時間を選択</h2>
+                            <p style={{ color: 'var(--piste-text-muted)', fontSize: '13px' }}>{data.date}</p>
+                        </div>
+                        <ReservationTime
+                            date={data.date}
+                            onSelect={handleTimeSelect}
+                            onBack={() => nextStep('DATE')}
+                        />
+                    </>
                 )}
 
                 {step === 'FORM' && (
-                    <ReservationForm
-                        onSubmit={handleFormSubmit}
-                        onBack={() => nextStep('TIME')}
-                        isSubmitting={isSubmitting}
-                    />
+                    <>
+                        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                            <h2 style={{ fontSize: '18px', fontWeight: '700' }}>お客様情報の入力</h2>
+                        </div>
+                        <ReservationForm
+                            onSubmit={handleFormSubmit}
+                            onBack={() => nextStep('TIME')}
+                            isSubmitting={isSubmitting}
+                        />
+                    </>
                 )}
 
                 {step === 'COMPLETE' && (
-                    <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
+                    <div className="card" style={{ textAlign: 'center', padding: '40px 20px', border: 'none', boxShadow: 'var(--shadow-premium)' }}>
                         <div style={{ fontSize: '48px', marginBottom: '20px' }}>✅</div>
                         <h2 style={{ marginBottom: '10px' }}>体験予約が完了しました！</h2>
                         <p style={{ color: 'var(--piste-text-muted)', fontSize: '14px', marginBottom: '30px' }}>
                             ご入力いただいたメールアドレスに確認メールを送信しました。<br />
                             当日お会いできるのを楽しみにしております。
                         </p>
-                        <div className="card" style={{ textAlign: 'left', fontSize: '14px', background: '#f8f9fa' }}>
+                        <div className="card" style={{ textAlign: 'left', fontSize: '14px', background: 'var(--piste-gray-light)', border: 'none' }}>
                             <div style={{ marginBottom: '5px' }}><strong>メニュー:</strong> {TRIAL_MENU.label}</div>
                             <div style={{ marginBottom: '5px' }}><strong>日付:</strong> {data.date}</div>
                             <div><strong>時間:</strong> {data.time}</div>
@@ -222,7 +243,7 @@ const LP: React.FC = () => {
                                 </p>
                                 <button
                                     className="btn-primary"
-                                    style={{ backgroundColor: '#06C755', border: 'none', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                                    style={{ backgroundColor: '#06C755', border: 'none', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: 'none' }}
                                     onClick={handleLineLinking}
                                     disabled={isLinking}
                                 >
@@ -271,5 +292,6 @@ const LP: React.FC = () => {
         </div>
     );
 };
+
 
 export default LP;
