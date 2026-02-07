@@ -323,7 +323,7 @@ const App: React.FC = () => {
 
         {step === 'COMPLETE' && (
           <div className="card" style={{ textAlign: 'center' }}>
-            <h2>予約完了！</h2>
+            <h2>予約が完了しました。</h2>
             {!isLinked && (
               <button
                 className="btn-primary"
