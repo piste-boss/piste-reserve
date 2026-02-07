@@ -204,6 +204,7 @@ const LP: React.FC = () => {
                         </div>
                         <ReservationTime
                             date={data.date}
+                            duration={TRIAL_MENU.duration}
                             onSelect={handleTimeSelect}
                             onBack={() => nextStep('DATE')}
                         />

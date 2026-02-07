@@ -306,7 +306,14 @@ const App: React.FC = () => {
           />
         )}
         {step === 'DATE' && <ReservationCalendar onSelect={(date) => { setData({ ...data, date }); nextStep('TIME'); }} onBack={() => nextStep('MENU')} />}
-        {step === 'TIME' && <ReservationTime date={data.date} onSelect={(time) => { setData({ ...data, time }); nextStep('FORM'); }} onBack={() => nextStep('DATE')} />}
+        {step === 'TIME' && (
+          <ReservationTime
+            date={data.date}
+            duration={MENUS.find(m => m.id === data.menu)?.duration || 30}
+            onSelect={(time) => { setData({ ...data, time }); nextStep('FORM'); }}
+            onBack={() => nextStep('DATE')}
+          />
+        )}
         {step === 'FORM' && (
           <ReservationForm
             initialData={profile ? { name: profile.name || '', phone: profile.phone || '', email: session?.user.email || '' } : undefined}

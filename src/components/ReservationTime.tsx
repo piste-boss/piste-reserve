@@ -5,6 +5,7 @@ interface Props {
     date: string;
     onSelect: (time: string) => void;
     onBack: () => void;
+    duration?: number; // 分単位の所要時間 (デフォルト30分)
 }
 
 const generateTimes = () => {
@@ -26,7 +27,7 @@ const generateTimes = () => {
 
 const TIMES = generateTimes();
 
-const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack }) => {
+const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 30 }) => {
     const [bookedRanges, setBookedRanges] = useState<{ start: string, end: string }[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -82,14 +83,16 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack }) => {
                     const isBooked = bookedRanges.some(range => {
                         if (!range.start) return false;
 
-                        const slotTime = t.substring(0, 5);
-                        const start = range.start.substring(0, 5);
-                        const end = range.end.substring(0, 5);
+                        const slotStart = t;
+                        const [sh, sm] = slotStart.split(':').map(Number);
+                        const slotEndMins = sh * 60 + sm + (duration || 30);
+                        const slotEnd = `${Math.floor(slotEndMins / 60).toString().padStart(2, '0')}:${(slotEndMins % 60).toString().padStart(2, '0')}`;
 
-                        if (start === end) {
-                            return slotTime === start;
-                        }
-                        return slotTime >= start && slotTime < end;
+                        const existingStart = range.start.substring(0, 5);
+                        const existingEnd = range.end.substring(0, 5);
+
+                        // 重複判定: (新規開始 < 既存終了) かつ (新規終了 > 既存開始)
+                        return (slotStart < existingEnd && slotEnd > existingStart);
                     });
 
                     const isDisabled = isBooked || isPast || loading;
