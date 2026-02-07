@@ -65,6 +65,8 @@ serve(async (req) => {
             .from('reservations')
             .update({ google_event_id: gasData.eventId })
             .eq('id', currentRecord.id);
+        } else if (gasData?.status === 'error') {
+          console.error("GAS側でエラーが発生しました:", gasData.message);
         }
       } catch (e) {
         console.error("GAS同期エラー:", e);
