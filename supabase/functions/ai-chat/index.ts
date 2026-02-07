@@ -110,13 +110,17 @@ ${userInfoPrompt}
 - **初回パーソナル / 初めての利用** → "first-60"
 - **入会手続き** → "entry-30"
 - **オンラインパーソナル** → "online-30"
+- **初回パーソル** → "first-60"
 
-【プライバシーと本人認証】
-- **重要：自分以外の情報を絶対に教えないでください。**
-- 現在ログイン中のお客様 (${userContext?.name || 'ゲスト'}) 以外の予約情報は、いかなる場合も開示・検索してはいけません。
-- 予約の確認やキャンセル依頼があった場合、まず find_user_reservations で予約を特定してください。
-- ログイン中の場合は、自動的にその方の予約のみが検索対象となります。
-- お客様に「予約ID」や「UUID」を尋ねないでください。
+【所要時間のルール（重要）】
+- "personal-20": 20分
+- "trial-60": 60分
+- "first-60": 60分
+- "entry-30": 30分
+- "online-30": 30分
+
+全ての予約において、(選択した開始時間 + 所要時間) が、既存の予約の時間帯と1分でも重なってはいけません。
+必ず get_booked_times で既存予約の「開始〜終了」時間を確認し、重複しない時間を案内してください。
 
 【予約キャンセル：最重要】
 - お客様からキャンセルの確定を得たら、**必ず直ちに cancel_reservation を実行してください**。
@@ -161,18 +165,38 @@ ${userInfoPrompt}
             else if (call.name === "add_reservation") {
                 console.log("Checking for double booking:", args.date, args.time);
 
-                // バックエンド側での重複最終チェック（安全策）
-                const { data: existing } = await supabase
-                    .from('reservations')
-                    .select('id')
-                    .eq('reservation_date', args.date)
-                    .eq('reservation_time', args.time);
+                // バックエンド側での重複最終チェック（所要時間を考慮した重複判定）
+                const menuDurations: Record<string, number> = {
+                    'personal-20': 20,
+                    'trial-60': 60,
+                    'first-60': 60,
+                    'entry-30': 30,
+                    'online-30': 30
+                };
+                const duration = menuDurations[args.menu_id] || 30;
 
-                if (existing && existing.length > 0) {
-                    console.log("Double booking detected!");
+                const { data: booked } = await supabase
+                    .from('reservations')
+                    .select('reservation_time, reservation_end_time')
+                    .eq('reservation_date', args.date);
+
+                const newStart = args.time;
+                const [nh, nm] = newStart.split(':').map(Number);
+                const newEndMins = nh * 60 + nm + duration;
+                const newEnd = `${Math.floor(newEndMins / 60).toString().padStart(2, '0')}:${(newEndMins % 60).toString().padStart(2, '0')}`;
+
+                const hasOverlap = booked?.some(r => {
+                    const exStart = r.reservation_time.substring(0, 5);
+                    const exEnd = (r.reservation_end_time || r.reservation_time).substring(0, 5);
+                    // 重複条件: (新規開始 < 既存終了) かつ (新規終了 > 既存開始)
+                    return (newStart < exEnd && newEnd > exStart);
+                });
+
+                if (hasOverlap) {
+                    console.log("Double booking (overlap) detected!");
                     toolResponseContent = JSON.stringify({
                         error: "Double booking error",
-                        message: "申し訳ありません。その時間は直前に別のお客様の予約が入りました。別の時間を提案してください。"
+                        message: "申し訳ありません。ご提示いただいた時間は、所要時間を含めると別のお客様の予約と重なってしまいます。別の時間を提案してください。"
                     });
                 } else {
                     console.log("Adding reservation for:", args.name || userContext?.name);
@@ -183,6 +207,7 @@ ${userInfoPrompt}
                         phone: args.phone || userContext?.phone,
                         reservation_date: args.date,
                         reservation_time: args.time,
+                        reservation_end_time: newEnd, // 終了時間も計算して保存
                         menu_id: args.menu_id,
                         source: 'ai-dekopin',
                         line_user_id: lineUserId
