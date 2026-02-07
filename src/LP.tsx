@@ -132,6 +132,7 @@ const LP: React.FC = () => {
                 reservation_end_time: endTime,
                 menu_id: data.menu,
                 source: 'web',
+                user_id: null, // メインアプリに合わせて明示的にnullを入れる
                 line_user_id: liff.isLoggedIn() ? liff.getContext()?.userId : null
             };
 
