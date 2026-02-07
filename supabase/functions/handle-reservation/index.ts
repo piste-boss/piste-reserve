@@ -45,16 +45,17 @@ serve(async (req) => {
         });
 
         const gasText = await gasRes.text();
-        console.log("GASレスポンス:", gasText);
+        console.log("GAS生レスポンス:", gasText);
 
         let gasData;
         try {
           gasData = JSON.parse(gasText);
         } catch (e) {
-          console.log("GASレスポンスはJSONではありませんでした");
+          console.log("GASレスポンスがJSON形式ではありませんでした");
         }
 
         if (type === 'INSERT' && gasData?.eventId) {
+          console.log("eventIdを取得成功。DB更新開始:", gasData.eventId);
           const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
           const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
           const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
