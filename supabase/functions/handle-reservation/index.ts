@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwYgs-NLD0Jvqi3v3oWsa0uWGHJb-HbIvoVsHE6Wjqzns-Y6X-UJQqr3HstZ1-8ZeEL6A/exec";
+const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzfrCsbZkBW7koRl73ArqxFt9BlvEv3Wy_Ezld9L0uiOEsdBkmNf_6aKm7v_Ub9oiyt/exec";
 const LINE_CHANNEL_ACCESS_TOKEN = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
 
 const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL");
@@ -35,7 +35,7 @@ serve(async (req) => {
         // LPからの予約も含め、GASには 'web' として送り、確実にカレンダー同期させる
         const payloadForGas = JSON.parse(JSON.stringify(body));
         if (payloadForGas.record && payloadForGas.record.source === 'lp-trial') {
-          payloadForGas.record.source = 'web';
+          payloadForGas.record.source = 'lp-trial'; // Google側での識別に使用
         }
 
         const gasRes = await fetch(GAS_WEBHOOK_URL, {
