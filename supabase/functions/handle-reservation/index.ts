@@ -30,13 +30,9 @@ serve(async (req) => {
     // GASへの同期
     if (currentRecord.source !== 'google-manual') {
       try {
-        console.log("GAS送信開始:", GAS_WEBHOOK_URL);
+        console.log("GAS送信開始:", GAS_WEBHOOK_URL, "ID:", currentRecord.id);
 
-        // LPからの予約も含め、GASには 'web' として送り、確実にカレンダー同期させる
         const payloadForGas = JSON.parse(JSON.stringify(body));
-        if (payloadForGas.record && payloadForGas.record.source === 'lp-trial') {
-          payloadForGas.record.source = 'lp-trial'; // Google側での識別に使用
-        }
 
         const gasRes = await fetch(GAS_WEBHOOK_URL, {
           method: "POST",
