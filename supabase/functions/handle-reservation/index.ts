@@ -27,8 +27,8 @@ serve(async (req) => {
     const currentRecord = type === 'DELETE' ? old_record : record
     console.log(`予約データ検知 [${type}]:`, currentRecord.id, currentRecord.source)
 
-    // GASへの同期
-    if (currentRecord.source !== 'google-manual') {
+    // GASへの同期（手動登録以外、または削除時）
+    if (currentRecord.source !== 'google-manual' || type === 'DELETE') {
       try {
         console.log("GAS送信開始:", GAS_WEBHOOK_URL, "ID:", currentRecord.id);
 
