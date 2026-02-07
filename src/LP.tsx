@@ -131,7 +131,7 @@ const LP: React.FC = () => {
                 reservation_time: data.time,
                 reservation_end_time: endTime,
                 menu_id: data.menu,
-                source: 'lp-trial',
+                source: 'web', // 'lp-trial' から 'web' に変更
                 line_user_id: liff.isLoggedIn() ? liff.getContext()?.userId : null
             };
 
