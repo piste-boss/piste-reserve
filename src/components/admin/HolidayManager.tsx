@@ -69,15 +69,20 @@ const HolidayManager: React.FC = () => {
                     key={d}
                     onClick={() => toggleHoliday(dateStr)}
                     style={{
-                        padding: '10px',
+                        padding: '5px',
+                        width: '32px',
+                        height: '32px',
                         borderRadius: '50%',
                         backgroundColor: isHoliday ? '#ef4444' : (isWeekend ? '#fee2e2' : 'white'),
                         color: isHoliday ? 'white' : (isWeekend ? '#c53030' : 'var(--piste-text-main)'),
                         border: isHoliday ? 'none' : '1px solid #ddd',
                         cursor: 'pointer',
-                        fontSize: '14px',
+                        fontSize: '12px',
                         fontWeight: '500',
-                        aspectRatio: '1/1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto',
                         transition: 'all 0.2s'
                     }}
                 >
@@ -89,20 +94,20 @@ const HolidayManager: React.FC = () => {
     };
 
     return (
-        <div className="card">
+        <div className="card" style={{ maxWidth: '400px' }}>
             <h3>休日設定</h3>
-            <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>
-                日付をクリックして休日（赤色）を設定・解除できます。<br />
-                <span style={{ color: '#c53030' }}>薄い赤</span>は定休日（日・月）です。
+            <p style={{ fontSize: '11px', color: '#666', marginBottom: '10px' }}>
+                クリックで休日（赤）を設定・解除<br />
+                <span style={{ color: '#c53030' }}>薄い赤</span>は定休日（日・月）
             </p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                 <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))}>&lt;</button>
                 <div style={{ fontWeight: 'bold' }}>{year}年 {month + 1}月</div>
                 <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))}>&gt;</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '5px', textAlign: 'center' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', textAlign: 'center' }}>
                 {['日', '月', '火', '水', '木', '金', '土'].map((d, i) => (
-                    <div key={d} style={{ fontSize: '12px', color: i === 0 ? 'red' : '#718096' }}>{d}</div>
+                    <div key={d} style={{ fontSize: '11px', color: i === 0 ? 'red' : '#718096', marginBottom: '5px' }}>{d}</div>
                 ))}
                 {loading ? <div style={{ gridColumn: '1 / -1', padding: '20px' }}>読み込み中...</div> : renderCalendar()}
             </div>
