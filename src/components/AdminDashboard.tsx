@@ -5,17 +5,35 @@ import HolidayManager from './admin/HolidayManager';
 import MenuManager from './admin/MenuManager';
 import CustomerList from './admin/CustomerList';
 import AdminAccountSettings from './admin/AdminAccountSettings';
+import AdminLogin from './admin/AdminLogin';
 
 const AdminDashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState('reservations');
     const [menus, setMenus] = useState<any[]>([]);
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+    const checkAdminAuth = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', session.user.id)
+                .single();
+
+            if (profile?.role === 'admin') {
+                setIsAuthenticated(true);
+                return;
+            }
+        }
+        setIsAuthenticated(false);
+    };
 
     const fetchMenus = async () => {
         const { data } = await supabase.from('menus').select('*');
         if (data && data.length > 0) {
             setMenus(data);
         } else {
-            // Fallback if table empty or not exists
             setMenus([
                 { id: 'personal-20', label: 'パーソナルトレーニング', duration: 20 },
                 { id: 'trial-60', label: '無料体験', duration: 60 },
@@ -24,19 +42,34 @@ const AdminDashboard: React.FC = () => {
                 { id: 'first-60', label: '初回パーソナル', duration: 60 },
             ]);
         }
-    }
+    };
 
     useEffect(() => {
+        checkAdminAuth();
         fetchMenus();
     }, []);
+
+    if (isAuthenticated === null) return <div style={{ padding: '20px', textAlign: 'center' }}>読み込み中...</div>;
+    if (isAuthenticated === false) return <AdminLogin onLoginSuccess={() => setIsAuthenticated(true)} />;
 
     return (
         <div className="admin-container">
             <header className="admin-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ color: 'var(--piste-dark-blue)', margin: 0 }}>管理者ダッシュボード</h2>
-                <a href="/" style={{ fontSize: '14px', color: 'var(--piste-text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span>&larr;</span> 予約サイトへ戻る
-                </a>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <button
+                        onClick={async () => {
+                            await supabase.auth.signOut();
+                            setIsAuthenticated(false);
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#e53e3e', cursor: 'pointer', fontSize: '14px' }}
+                    >
+                        ログアウト
+                    </button>
+                    <a href="/" style={{ fontSize: '14px', color: 'var(--piste-text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span>&larr;</span> 予約サイトへ戻る
+                    </a>
+                </div>
             </header>
 
             <div className="admin-layout">
