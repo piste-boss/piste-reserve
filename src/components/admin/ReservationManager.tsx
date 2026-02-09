@@ -239,8 +239,8 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                                 </label>
                             </div>
                             <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                                <button className="btn-secondary" onClick={() => setIsEditing(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ddd', background: 'white' }}>キャンセル</button>
-                                <button className="btn-primary" onClick={editForm.id ? handleSaveReservation : handleRegister}>保存する</button>
+                                <button type="button" className="btn-secondary" onClick={() => setIsEditing(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ddd', background: 'white' }}>キャンセル</button>
+                                <button type="button" className="btn-primary" onClick={editForm.id ? handleSaveReservation : handleRegister}>保存する</button>
                             </div>
                         </div>
                     )}

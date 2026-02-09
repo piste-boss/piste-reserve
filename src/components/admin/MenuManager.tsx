@@ -31,7 +31,8 @@ const MenuManager: React.FC = () => {
             .order('created_at', { ascending: true });
 
         if (error) {
-            console.error('Error fetching menus:', error);
+            console.error('Error fetching menus:', JSON.stringify(error));
+            setMenus([]);
         } else {
             setMenus(data || []);
         }
@@ -83,7 +84,7 @@ const MenuManager: React.FC = () => {
     };
 
     const handleSeedDefaults = async () => {
-        if (!window.confirm('初期メニューデータを登録しますか？')) return;
+        // Removed confirm to troubleshoot "instant disappear" issue
         setLoading(true);
         const { error } = await supabase.from('menus').insert(DEFAULT_MENUS);
         if (error) alert('初期データの登録に失敗: ' + error.message);
@@ -122,8 +123,8 @@ const MenuManager: React.FC = () => {
                         </label>
                     </div>
                     <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                        <button className="btn-secondary" onClick={() => setIsEditing(false)}>キャンセル</button>
-                        <button className="btn-primary" onClick={handleSave}>保存する</button>
+                        <button type="button" className="btn-secondary" onClick={() => setIsEditing(false)}>キャンセル</button>
+                        <button type="button" className="btn-primary" onClick={handleSave}>保存する</button>
                     </div>
                 </div>
             )}
@@ -133,10 +134,18 @@ const MenuManager: React.FC = () => {
             ) : (
                 <>
                     {menus.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '30px', color: '#666' }}>
-                            <p>登録されているメニューがありません。</p>
-                            <button onClick={handleSeedDefaults} style={{ marginTop: '10px', padding: '8px 16px', background: '#edf2f7', border: 'none', borderRadius: '6px', cursor: 'pointer', color: '#4a5568' }}>
-                                初期データを登録する
+                        <div style={{ textAlign: 'center', padding: '40px', color: '#666', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e0' }}>
+                            <p style={{ marginBottom: '15px', fontWeight: 'bold' }}>メニューが登録されていません。</p>
+                            <p style={{ fontSize: '13px', marginBottom: '20px' }}>
+                                以下の標準メニューを一括登録しますか？<br />
+                                ・パーソナルトレーニング (20分)<br />
+                                ・無料体験 (60分)<br />
+                                ・初回パーソナル (60分)<br />
+                                ・入会手続き (30分)<br />
+                                ・オンライン (30分)
+                            </p>
+                            <button onClick={handleSeedDefaults} className="btn-primary">
+                                標準メニューを登録する
                             </button>
                         </div>
                     ) : (
