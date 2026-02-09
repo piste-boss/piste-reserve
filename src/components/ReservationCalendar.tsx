@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 interface Props {
     onSelect: (date: string) => void;
@@ -18,6 +19,18 @@ const ReservationCalendar: React.FC<Props> = ({ onSelect, onBack }) => {
     const totalDays = daysInMonth(year, month);
     const firstDay = startDay(year, month);
 
+    const [holidays, setHolidays] = useState<string[]>([]);
+
+    useEffect(() => {
+        const fetchHolidays = async () => {
+            const { data } = await supabase.from('holidays').select('date');
+            if (data) {
+                setHolidays(data.map(d => d.date));
+            }
+        };
+        fetchHolidays();
+    }, []);
+
     // Padding for start of month
     for (let i = 0; i < firstDay; i++) {
         days.push(<div key={`pad-${i}`} style={{ padding: '10px' }}></div>);
@@ -27,7 +40,9 @@ const ReservationCalendar: React.FC<Props> = ({ onSelect, onBack }) => {
     for (let d = 1; d <= totalDays; d++) {
         const date = new Date(year, month, d);
         const dayOfWeek = date.getDay();
-        const isHoliday = dayOfWeek === 0 || dayOfWeek === 1; // Sun, Mon
+        const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+
+        const isHoliday = dayOfWeek === 0 || dayOfWeek === 1 || holidays.includes(dateStr); // Sun, Mon or Custom Holiday
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -51,7 +66,7 @@ const ReservationCalendar: React.FC<Props> = ({ onSelect, onBack }) => {
                 }}
                 onClick={() => {
                     if (!isDisabled) {
-                        onSelect(`${year}-${(month + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`);
+                        onSelect(dateStr);
                     }
                 }}
             >

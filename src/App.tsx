@@ -21,13 +21,8 @@ interface ReservationData {
   email: string;
 }
 
-const MENUS = [
-  { id: 'personal-20', label: 'パーソナルトレーニング', duration: 20 },
-  { id: 'trial-60', label: '無料体験', duration: 60 },
-  { id: 'entry-30', label: '入会手続き', duration: 30 },
-  { id: 'online-30', label: 'オンライン', duration: 30 },
-  { id: 'first-60', label: '初回パーソナル', duration: 60 },
-];
+// MENUS constant removed in favor of dynamic fetching
+
 
 const LIFF_ID = "2009052718-9rclRq3Z";
 
@@ -35,6 +30,26 @@ const App: React.FC = () => {
   const [step, setStep] = useState<Step>('MENU');
   const [, setAdminClickCount] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(false);
+
+  // Dynamic Menus State
+  const [menus, setMenus] = useState<{ id: string, label: string, duration: number }[]>([
+    { id: 'personal-20', label: 'パーソナルトレーニング', duration: 20 },
+    { id: 'trial-60', label: '無料体験', duration: 60 },
+    { id: 'entry-30', label: '入会手続き', duration: 30 },
+    { id: 'online-30', label: 'オンライン', duration: 30 },
+    { id: 'first-60', label: '初回パーソナル', duration: 60 },
+  ]);
+
+  useEffect(() => {
+    const fetchMenus = async () => {
+      const { data } = await supabase.from('menus').select('*').order('created_at');
+      if (data && data.length > 0) {
+        setMenus(data);
+      }
+    };
+    fetchMenus();
+  }, []);
+
   const [isLinking, setIsLinking] = useState(false);
   const [isLinked, setIsLinked] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -173,7 +188,7 @@ const App: React.FC = () => {
         return;
       }
 
-      const selectedMenu = MENUS.find(m => m.id === data.menu);
+      const selectedMenu = menus.find(m => m.id === data.menu);
       const duration = selectedMenu?.duration || 30;
 
       const [hours, minutes] = data.time.split(':').map(Number);
@@ -274,7 +289,7 @@ const App: React.FC = () => {
               value={data.menu} onChange={(e) => setData({ ...data, menu: e.target.value })}
             >
               <option value="" disabled>メニューを選択...</option>
-              {MENUS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+              {menus.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
             <button className="btn-primary" style={{ width: '100%', marginTop: '20px' }} disabled={!data.menu} onClick={() => nextStep('DATE')}>次へ</button>
           </div>
@@ -309,7 +324,7 @@ const App: React.FC = () => {
         {step === 'TIME' && (
           <ReservationTime
             date={data.date}
-            duration={MENUS.find(m => m.id === data.menu)?.duration || 30}
+            duration={menus.find(m => m.id === data.menu)?.duration || 30}
             onSelect={(time) => { setData({ ...data, time }); nextStep('FORM'); }}
             onBack={() => nextStep('DATE')}
           />

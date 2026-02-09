@@ -3,11 +3,14 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import LP from './LP.tsx'
+import AdminDashboard from './components/AdminDashboard.tsx'
 
-const isLP = window.location.pathname === '/lp' || window.location.search.includes('lp=true');
+const path = window.location.pathname;
+const isLP = path === '/lp' || window.location.search.includes('lp=true');
+const isAdmin = path === '/admin';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {isLP ? <LP /> : <App />}
+    {isAdmin ? <AdminDashboard /> : (isLP ? <LP /> : <App />)}
   </StrictMode>,
 )
