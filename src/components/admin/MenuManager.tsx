@@ -14,6 +14,7 @@ const MenuManager: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState<Partial<Menu>>({});
+    const [deleteTarget, setDeleteTarget] = useState<Menu | null>(null);
 
     const DEFAULT_MENUS = [
         { label: 'パーソナルトレーニング', duration: 20, price: 0 },
@@ -71,15 +72,16 @@ const MenuManager: React.FC = () => {
         setLoading(false);
     };
 
-    const handleDelete = async (id: string) => {
-        if (!window.confirm('本当に削除しますか？')) return;
+    const executeDelete = async () => {
+        if (!deleteTarget) return;
         setLoading(true);
-        const { error } = await supabase.from('menus').delete().eq('id', id);
+        const { error } = await supabase.from('menus').delete().eq('id', deleteTarget.id);
         if (error) {
             alert('削除に失敗しました');
         } else {
             fetchMenus();
         }
+        setDeleteTarget(null);
         setLoading(false);
     };
 
@@ -98,6 +100,23 @@ const MenuManager: React.FC = () => {
                 <h3 style={{ margin: 0 }}>メニュー管理</h3>
                 <button className="btn-primary" onClick={() => { setEditForm({}); setIsEditing(true); }}>＋ 新規追加</button>
             </div>
+
+            {/* Custom Delete Confirmation Modal */}
+            {deleteTarget && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                }}>
+                    <div style={{ background: 'white', padding: '20px', borderRadius: '8px', minWidth: '300px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                        <h4 style={{ marginTop: 0 }}>確認</h4>
+                        <p><strong>{deleteTarget.label}</strong> を削除してもよろしいですか？</p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                            <button onClick={() => setDeleteTarget(null)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ddd', background: 'white', cursor: 'pointer' }}>キャンセル</button>
+                            <button onClick={executeDelete} style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', background: '#e53e3e', color: 'white', cursor: 'pointer' }}>削除する</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {isEditing && (
                 <div style={{ marginBottom: '24px', padding: '20px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
@@ -166,7 +185,7 @@ const MenuManager: React.FC = () => {
                                             <td style={{ padding: '12px 10px', textAlign: 'right' }}>
                                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                                     <button onClick={() => { setEditForm(menu); setIsEditing(true); }} style={{ padding: '6px 12px', fontSize: '12px', background: '#edf2f7', borderRadius: '4px', border: 'none', color: '#4a5568', cursor: 'pointer' }}>編集</button>
-                                                    <button onClick={() => handleDelete(menu.id)} style={{ padding: '6px 12px', fontSize: '12px', background: '#fee2e2', borderRadius: '4px', border: 'none', color: '#c53030', cursor: 'pointer' }}>削除</button>
+                                                    <button onClick={() => setDeleteTarget(menu)} style={{ padding: '6px 12px', fontSize: '12px', background: '#fee2e2', borderRadius: '4px', border: 'none', color: '#c53030', cursor: 'pointer' }}>削除</button>
                                                 </div>
                                             </td>
                                         </tr>

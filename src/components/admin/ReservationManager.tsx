@@ -15,6 +15,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     // Edit/Create State
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState<any>({});
+    const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
@@ -69,11 +70,18 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     };
 
     // CRUD Operations
-    const handleDelete = async (id: string) => {
-        if (!window.confirm('本当に予約を削除（キャンセル）しますか？')) return;
-        const { error } = await supabase.from('reservations').delete().eq('id', id);
-        if (error) alert('削除に失敗しました');
+    const confirmDelete = (reservation: any) => {
+        setDeleteTarget(reservation);
+    };
+
+    const executeDelete = async () => {
+        if (!deleteTarget) return;
+        setLoading(true);
+        const { error } = await supabase.from('reservations').delete().eq('id', deleteTarget.id);
+        if (error) alert('削除に失敗しました: ' + error.message);
         else fetchReservations();
+        setDeleteTarget(null);
+        setLoading(false);
     };
 
     const handleSaveReservation = async () => {
@@ -177,6 +185,24 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {deleteTarget && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                }}>
+                    <div style={{ background: 'white', padding: '20px', borderRadius: '8px', minWidth: '300px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                        <h4 style={{ marginTop: 0 }}>確認</h4>
+                        <p>
+                            <strong>{deleteTarget.reservation_date} {deleteTarget.reservation_time}</strong><br />
+                            {deleteTarget.name} 様の予約を削除（キャンセル）しますか？
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                            <button onClick={() => setDeleteTarget(null)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #ddd', background: 'white', cursor: 'pointer' }}>キャンセル</button>
+                            <button onClick={executeDelete} style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', background: '#e53e3e', color: 'white', cursor: 'pointer' }}>削除する</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div style={{ display: 'flex', gap: '20px', flexDirection: 'row', flexWrap: 'wrap' }}>
                 {/* Calendar Section */}
                 <div className="card" style={{ flex: '1', minWidth: '300px', maxWidth: '400px' }}>
@@ -270,7 +296,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                                             <td>
                                                 <div style={{ display: 'flex', gap: '5px' }}>
                                                     <button onClick={() => { setEditForm(r); setIsEditing(true); }} style={{ padding: '6px 10px', borderRadius: '4px', background: '#edf2f7', fontSize: '12px' }}>編集</button>
-                                                    <button onClick={() => handleDelete(r.id)} style={{ padding: '6px 10px', borderRadius: '4px', background: '#fee2e2', color: 'red', fontSize: '12px' }}>削除</button>
+                                                    <button onClick={() => confirmDelete(r)} style={{ padding: '6px 10px', borderRadius: '4px', background: '#fee2e2', color: 'red', fontSize: '12px' }}>削除</button>
                                                 </div>
                                             </td>
                                         </tr>
