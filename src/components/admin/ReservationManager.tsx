@@ -89,6 +89,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
             reservation_date: editForm.reservation_date,
             reservation_time: editForm.reservation_time,
             name: editForm.name,
+            name_kana: editForm.name_kana,
             phone: editForm.phone,
             email: editForm.email,
             menu_id: editForm.menu_id
@@ -108,6 +109,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
             reservation_date: editForm.reservation_date,
             reservation_time: editForm.reservation_time,
             name: editForm.name,
+            name_kana: editForm.name_kana,
             phone: editForm.phone,
             email: editForm.email,
             menu_id: editForm.menu_id,
@@ -247,6 +249,10 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                                 <label>
                                     <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>お名前</span>
                                     <input type="text" value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                                </label>
+                                <label>
+                                    <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>ヨミガナ</span>
+                                    <input type="text" value={editForm.name_kana || ''} onChange={e => setEditForm({ ...editForm, name_kana: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
                                 </label>
                                 <label>
                                     <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>電話番号</span>

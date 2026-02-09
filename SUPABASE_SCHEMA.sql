@@ -22,3 +22,6 @@ INSERT INTO menus (id, label, duration) VALUES
   ('first-60', '初回パーソナル', 60);
 
 -- Note: 'profiles' and 'reservations' tables are assumed to exist.
+
+-- Update Reservations Table
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS name_kana TEXT;
