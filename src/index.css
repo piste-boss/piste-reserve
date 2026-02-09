@@ -124,6 +124,19 @@ a {
     grid-template-columns: 1fr 1fr;
     gap: 20px;
   }
+
+  .admin-nav-menu {
+    flex-direction: column;
+  }
+}
+
+.admin-nav-menu {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 5px;
+  /* Scrollbar spacing */
 }
 
 /* Base table styles for better PC view */

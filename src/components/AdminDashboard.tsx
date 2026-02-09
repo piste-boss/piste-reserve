@@ -122,7 +122,7 @@ const AdminDashboard: React.FC = () => {
             <div className="admin-layout">
                 {/* Sidebar Navigation */}
                 <nav className="admin-sidebar card" style={{ padding: '10px', height: 'fit-content' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <div className="admin-nav-menu">
                         <button
                             onClick={() => setActiveTab('reservations')}
                             style={{
@@ -287,9 +287,9 @@ const AdminDashboard: React.FC = () => {
                         </div>
                     )}
 
-                    {activeTab === 'holidays' && <div className="card"><HolidayManager /></div>}
-                    {activeTab === 'menus' && <div className="card"><MenuManager /></div>}
-                    {activeTab === 'customers' && <div className="card"><CustomerList /></div>}
+                    {activeTab === 'holidays' && <HolidayManager />}
+                    {activeTab === 'menus' && <MenuManager />}
+                    {activeTab === 'customers' && <CustomerList />}
                 </main>
             </div>
         </div>
