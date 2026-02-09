@@ -30,52 +30,50 @@ const AdminDashboard: React.FC = () => {
     }, []);
 
     return (
-        <div className="ad-wrapper">
-            <div className="ad-container">
-                <header className="ad-header">
-                    <h2 style={{ color: 'var(--piste-dark-blue)', margin: 0 }}>管理者ダッシュボード</h2>
-                    <a href="/" style={{ fontSize: '14px', color: 'var(--piste-text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span>&larr;</span> 予約サイトへ戻る
-                    </a>
-                </header>
+        <div className="admin-container">
+            <header className="admin-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ color: 'var(--piste-dark-blue)', margin: 0 }}>管理者ダッシュボード</h2>
+                <a href="/" style={{ fontSize: '14px', color: 'var(--piste-text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span>&larr;</span> 予約サイトへ戻る
+                </a>
+            </header>
 
-                <div className="ad-layout">
-                    {/* Sidebar Navigation */}
-                    <nav className="ad-sidebar">
-                        <button
-                            className={`ad-menu-item ${activeTab === 'reservations' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('reservations')}
-                        >
-                            📅 予約管理
-                        </button>
-                        <button
-                            className={`ad-menu-item ${activeTab === 'holidays' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('holidays')}
-                        >
-                            🎌 休日設定
-                        </button>
-                        <button
-                            className={`ad-menu-item ${activeTab === 'menus' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('menus')}
-                        >
-                            📋 メニュー管理
-                        </button>
-                        <button
-                            className={`ad-menu-item ${activeTab === 'customers' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('customers')}
-                        >
-                            👥 顧客リスト
-                        </button>
-                    </nav>
+            <div className="admin-layout">
+                {/* Sidebar Navigation */}
+                <nav className="admin-sidebar admin-nav-menu">
+                    <button
+                        className={`admin-menu-item ${activeTab === 'reservations' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('reservations')}
+                    >
+                        予約管理
+                    </button>
+                    <button
+                        className={`admin-menu-item ${activeTab === 'holidays' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('holidays')}
+                    >
+                        休日設定
+                    </button>
+                    <button
+                        className={`admin-menu-item ${activeTab === 'menus' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('menus')}
+                    >
+                        メニュー管理
+                    </button>
+                    <button
+                        className={`admin-menu-item ${activeTab === 'customers' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('customers')}
+                    >
+                        顧客リスト
+                    </button>
+                </nav>
 
-                    {/* Main Content Area */}
-                    <main className="ad-content">
-                        {activeTab === 'reservations' && <ReservationManager menus={menus} />}
-                        {activeTab === 'holidays' && <HolidayManager />}
-                        {activeTab === 'menus' && <MenuManager />}
-                        {activeTab === 'customers' && <CustomerList />}
-                    </main>
-                </div>
+                {/* Main Content Area */}
+                <main className="admin-content">
+                    {activeTab === 'reservations' && <ReservationManager menus={menus} />}
+                    {activeTab === 'holidays' && <HolidayManager />}
+                    {activeTab === 'menus' && <MenuManager />}
+                    {activeTab === 'customers' && <CustomerList />}
+                </main>
             </div>
         </div>
     );

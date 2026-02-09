@@ -120,6 +120,30 @@ a {
   padding-bottom: 0;
 }
 
+.admin-menu-item {
+  text-align: left;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--piste-text-muted);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.admin-menu-item:hover {
+  background-color: #f1f5f9;
+  color: var(--piste-dark-blue);
+}
+
+.admin-menu-item.active {
+  background-color: var(--piste-dark-blue);
+  color: var(--piste-white);
+  box-shadow: 0 4px 12px rgba(10, 25, 47, 0.2);
+}
+
 .admin-content {
   flex-grow: 1;
   min-width: 0;

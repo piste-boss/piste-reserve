@@ -226,6 +226,10 @@ const App: React.FC = () => {
     }
   };
 
+  if (step === 'ADMIN') {
+    return <AdminDashboard />;
+  }
+
   return (
     <div className="container">
       <header style={{ textAlign: 'center', padding: '20px 0', borderBottom: '1px solid #f0f0f0', marginBottom: '20px' }}>
