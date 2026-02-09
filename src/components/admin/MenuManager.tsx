@@ -6,18 +6,35 @@ interface Menu {
     label: string;
     duration: number;
     description?: string;
+    price?: number;
 }
 
 const MenuManager: React.FC = () => {
     const [menus, setMenus] = useState<Menu[]>([]);
     const [loading, setLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    const [currentMenu, setCurrentMenu] = useState<Partial<Menu>>({});
+    const [editForm, setEditForm] = useState<Partial<Menu>>({});
+
+    const DEFAULT_MENUS = [
+        { label: 'パーソナルトレーニング', duration: 20, price: 0 },
+        { label: '無料体験', duration: 60, price: 0 },
+        { label: '入会手続き', duration: 30, price: 0 },
+        { label: 'オンライン', duration: 30, price: 0 },
+        { label: '初回パーソナル', duration: 60, price: 0 },
+    ];
 
     const fetchMenus = async () => {
         setLoading(true);
-        const { data, error } = await supabase.from('menus').select('*').order('created_at');
-        if (data) setMenus(data);
+        const { data, error } = await supabase
+            .from('menus')
+            .select('*')
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Error fetching menus:', error);
+        } else {
+            setMenus(data || []);
+        }
         setLoading(false);
     };
 
@@ -26,80 +43,130 @@ const MenuManager: React.FC = () => {
     }, []);
 
     const handleSave = async () => {
-        if (!currentMenu.label || !currentMenu.duration) return alert("必須項目を入力してください");
+        if (!editForm.label || !editForm.duration) return alert('メニュー名と所要時間は必須です');
+        setLoading(true);
 
         const payload = {
-            label: currentMenu.label,
-            duration: currentMenu.duration,
-            description: currentMenu.description
+            label: editForm.label,
+            duration: editForm.duration,
+            description: editForm.description,
+            price: editForm.price
         };
 
-        if (currentMenu.id) {
-            await supabase.from('menus').update(payload).eq('id', currentMenu.id);
+        let result;
+        if (editForm.id) {
+            result = await supabase.from('menus').update(payload).eq('id', editForm.id);
         } else {
-            await supabase.from('menus').insert([payload]);
+            result = await supabase.from('menus').insert([payload]);
         }
 
-        setIsEditing(false);
-        setCurrentMenu({});
-        fetchMenus();
+        if (result.error) {
+            alert('保存に失敗しました: ' + result.error.message);
+        } else {
+            setIsEditing(false);
+            setEditForm({});
+            fetchMenus();
+        }
+        setLoading(false);
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('本当に削除しますか？')) return;
-        await supabase.from('menus').delete().eq('id', id);
-        fetchMenus();
+        if (!window.confirm('本当に削除しますか？')) return;
+        setLoading(true);
+        const { error } = await supabase.from('menus').delete().eq('id', id);
+        if (error) {
+            alert('削除に失敗しました');
+        } else {
+            fetchMenus();
+        }
+        setLoading(false);
+    };
+
+    const handleSeedDefaults = async () => {
+        if (!window.confirm('初期メニューデータを登録しますか？')) return;
+        setLoading(true);
+        const { error } = await supabase.from('menus').insert(DEFAULT_MENUS);
+        if (error) alert('初期データの登録に失敗: ' + error.message);
+        else fetchMenus();
+        setLoading(false);
     };
 
     return (
         <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <h3>予約メニュー管理</h3>
-                <button className="btn-primary" style={{ padding: '8px 16px', fontSize: '12px' }} onClick={() => { setCurrentMenu({}); setIsEditing(true); }}>新規追加</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0 }}>メニュー管理</h3>
+                <button className="btn-primary" onClick={() => { setEditForm({}); setIsEditing(true); }}>＋ 新規追加</button>
             </div>
 
             {isEditing && (
-                <div style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
-                    <div style={{ marginBottom: '10px' }}>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold' }}>メニュー名</label>
-                        <input
-                            type="text"
-                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                            value={currentMenu.label || ''}
-                            onChange={e => setCurrentMenu({ ...currentMenu, label: e.target.value })}
-                        />
+                <div style={{ marginBottom: '24px', padding: '20px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <h4 style={{ marginTop: 0, marginBottom: '15px' }}>{editForm.id ? 'メニュー編集' : '新規メニュー登録'}</h4>
+                    <div className="grid-2-cols">
+                        <label>
+                            <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>メニュー名</span>
+                            <input
+                                type="text"
+                                value={editForm.label || ''}
+                                onChange={e => setEditForm({ ...editForm, label: e.target.value })}
+                                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }}
+                            />
+                        </label>
+                        <label>
+                            <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>所要時間 (分)</span>
+                            <input
+                                type="number"
+                                value={editForm.duration || ''}
+                                onChange={e => setEditForm({ ...editForm, duration: parseInt(e.target.value) })}
+                                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }}
+                            />
+                        </label>
                     </div>
-                    <div style={{ marginBottom: '10px' }}>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold' }}>所要時間（分）</label>
-                        <input
-                            type="number"
-                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                            value={currentMenu.duration || ''}
-                            onChange={e => setCurrentMenu({ ...currentMenu, duration: parseInt(e.target.value) })}
-                        />
-                    </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button className="btn-primary" style={{ flex: 1 }} onClick={handleSave}>保存</button>
-                        <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setIsEditing(false)}>キャンセル</button>
+                    <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                        <button className="btn-secondary" onClick={() => setIsEditing(false)}>キャンセル</button>
+                        <button className="btn-primary" onClick={handleSave}>保存する</button>
                     </div>
                 </div>
             )}
 
-            {loading ? <div style={{ textAlign: 'center', padding: '20px' }}>読み込み中...</div> : (
-                <ul style={{ listStyle: 'none', padding: 0 }}>
-                    {menus.map(m => (
-                        <li key={m.id} style={{ padding: '10px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <div style={{ fontWeight: 'bold' }}>{m.label}</div>
-                                <div style={{ fontSize: '12px', color: '#666' }}>{m.duration}分</div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '5px' }}>
-                                <button onClick={() => { setCurrentMenu(m); setIsEditing(true); }} style={{ padding: '4px 8px', fontSize: '12px', background: '#edf2f7', borderRadius: '4px' }}>編集</button>
-                                <button onClick={() => handleDelete(m.id)} style={{ padding: '4px 8px', fontSize: '12px', background: '#fee2e2', color: '#c53030', borderRadius: '4px' }}>削除</button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+            {loading ? (
+                <div style={{ textAlign: 'center', padding: '20px' }}>読み込み中...</div>
+            ) : (
+                <>
+                    {menus.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '30px', color: '#666' }}>
+                            <p>登録されているメニューがありません。</p>
+                            <button onClick={handleSeedDefaults} style={{ marginTop: '10px', padding: '8px 16px', background: '#edf2f7', border: 'none', borderRadius: '6px', cursor: 'pointer', color: '#4a5568' }}>
+                                初期データを登録する
+                            </button>
+                        </div>
+                    ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ background: '#f7fafc', textAlign: 'left' }}>
+                                        <th style={{ padding: '10px', borderBottom: '2px solid #edf2f7', fontSize: '13px' }}>メニュー名</th>
+                                        <th style={{ padding: '10px', borderBottom: '2px solid #edf2f7', fontSize: '13px' }}>所要時間</th>
+                                        <th style={{ padding: '10px', borderBottom: '2px solid #edf2f7', fontSize: '13px', textAlign: 'right' }}>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {menus.map(menu => (
+                                        <tr key={menu.id} style={{ borderBottom: '1px solid #edf2f7' }}>
+                                            <td style={{ padding: '12px 10px', fontWeight: 'bold', color: '#2d3748' }}>{menu.label}</td>
+                                            <td style={{ padding: '12px 10px', color: '#4a5568' }}>{menu.duration}分</td>
+                                            <td style={{ padding: '12px 10px', textAlign: 'right' }}>
+                                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                                    <button onClick={() => { setEditForm(menu); setIsEditing(true); }} style={{ padding: '6px 12px', fontSize: '12px', background: '#edf2f7', borderRadius: '4px', border: 'none', color: '#4a5568', cursor: 'pointer' }}>編集</button>
+                                                    <button onClick={() => handleDelete(menu.id)} style={{ padding: '6px 12px', fontSize: '12px', background: '#fee2e2', borderRadius: '4px', border: 'none', color: '#c53030', cursor: 'pointer' }}>削除</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

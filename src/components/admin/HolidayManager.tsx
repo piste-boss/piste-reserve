@@ -31,23 +31,36 @@ const HolidayManager: React.FC = () => {
     }, []);
 
     const toggleHoliday = async (dateStr: string) => {
+        // Optimistic UI update
         const isHoliday = holidays.includes(dateStr);
         let newHolidays = [...holidays];
 
         if (isHoliday) {
+            newHolidays = newHolidays.filter(d => d !== dateStr);
+        } else {
+            newHolidays.push(dateStr);
+        }
+        setHolidays(newHolidays);
+
+        if (isHoliday) {
             // Remove holiday
             const { error } = await supabase.from('holidays').delete().eq('date', dateStr);
-            if (!error) {
-                newHolidays = newHolidays.filter(d => d !== dateStr);
+            if (error) {
+                console.error('Error removing holiday:', error);
+                // Revert on error
+                setHolidays(holidays);
+                alert('休日の削除に失敗しました');
             }
         } else {
             // Add holiday
             const { error } = await supabase.from('holidays').insert([{ date: dateStr }]);
-            if (!error) {
-                newHolidays.push(dateStr);
+            if (error) {
+                console.error('Error adding holiday:', error);
+                // Revert on error
+                setHolidays(holidays);
+                alert('休日の追加に失敗しました');
             }
         }
-        setHolidays(newHolidays);
     };
 
     const renderCalendar = () => {
@@ -62,7 +75,8 @@ const HolidayManager: React.FC = () => {
         for (let d = 1; d <= totalDays; d++) {
             const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
             const isHoliday = holidays.includes(dateStr);
-            const isWeekend = new Date(year, month, d).getDay() === 0 || new Date(year, month, d).getDay() === 1; // Sun, Mon default closed?
+            const dayOfWeek = new Date(year, month, d).getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 1; // Sun(0), Mon(1) default closed
 
             days.push(
                 <button
