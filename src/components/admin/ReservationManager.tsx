@@ -16,6 +16,8 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState<any>({});
     const [deleteTarget, setDeleteTarget] = useState<any>(null);
+    const [customers, setCustomers] = useState<any[]>([]);
+    const [suggestions, setSuggestions] = useState<any[]>([]);
 
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
@@ -29,17 +31,69 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
 
     const fetchReservations = async () => {
         setLoading(true);
-        // Fetch all reservations (or optimize to fetch by month range if needed in future)
-        // For now, fetching all to show indicators on calendar easily
-        const { data, error } = await supabase
+        // Fetch reservations
+        const { data: resvData, error: resvError } = await supabase
             .from('reservations')
             .select('*')
             .order('reservation_time', { ascending: true });
 
-        if (!error && data) {
-            setReservations(data);
+        // Fetch profiles (customers)
+        const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*');
+
+        if (!resvError && resvData) {
+            setReservations(resvData);
+
+            // Collect unique customers from both tables
+            const uniqueCustomers: any[] = [];
+            const seen = new Set();
+
+            // Add from profiles
+            profileData?.forEach(p => {
+                const identifier = (p.name || '') + (p.phone || '');
+                if (!seen.has(identifier)) {
+                    uniqueCustomers.push({
+                        name: p.name || '',
+                        name_kana: p.name_kana || '',
+                        phone: p.phone || '',
+                        email: p.email || '',
+                        source: 'profile'
+                    });
+                    seen.add(identifier);
+                }
+            });
+
+            // Add from existing reservations (if not already in uniqueCustomers)
+            resvData.forEach(r => {
+                const identifier = (r.name || '') + (r.phone || '');
+                if (!seen.has(identifier)) {
+                    uniqueCustomers.push({
+                        name: r.name || '',
+                        name_kana: r.name_kana || '',
+                        phone: r.phone || '',
+                        email: r.email || '',
+                        menu_id: r.menu_id,
+                        source: 'resv'
+                    });
+                    seen.add(identifier);
+                }
+            });
+            setCustomers(uniqueCustomers);
         }
         setLoading(false);
+    };
+
+    const handleSearch = (val: string) => {
+        if (!val) {
+            setSuggestions([]);
+            return;
+        }
+        const filtered = customers.filter(c =>
+            (c.name_kana || '').includes(val) ||
+            (c.name || '').includes(val)
+        ).slice(0, 5);
+        setSuggestions(filtered);
     };
 
     useEffect(() => {
@@ -246,13 +300,74 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                                     <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>時間</span>
                                     <input type="time" value={editForm.reservation_time || ''} onChange={e => setEditForm({ ...editForm, reservation_time: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
                                 </label>
-                                <label>
+                                <label style={{ position: 'relative' }}>
                                     <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>お名前</span>
-                                    <input type="text" value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                                    <input
+                                        type="text"
+                                        value={editForm.name || ''}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            setEditForm({ ...editForm, name: val });
+                                            handleSearch(val);
+                                        }}
+                                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }}
+                                    />
                                 </label>
-                                <label>
+                                <label style={{ position: 'relative' }}>
                                     <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>ヨミガナ</span>
-                                    <input type="text" value={editForm.name_kana || ''} onChange={e => setEditForm({ ...editForm, name_kana: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                                    <input
+                                        type="text"
+                                        value={editForm.name_kana || ''}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            setEditForm({ ...editForm, name_kana: val });
+                                            handleSearch(val);
+                                        }}
+                                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }}
+                                        placeholder="例：ヤマダ タロウ"
+                                    />
+                                    {suggestions.length > 0 && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            background: 'white',
+                                            border: '1px solid #ddd',
+                                            borderRadius: '6px',
+                                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                                            zIndex: 10,
+                                            marginTop: '2px'
+                                        }}>
+                                            {suggestions.map((s, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => {
+                                                        setEditForm({
+                                                            ...editForm,
+                                                            name: s.name,
+                                                            name_kana: s.name_kana,
+                                                            phone: s.phone,
+                                                            email: s.email,
+                                                            menu_id: s.menu_id || editForm.menu_id
+                                                        });
+                                                        setSuggestions([]);
+                                                    }}
+                                                    style={{
+                                                        padding: '10px',
+                                                        borderBottom: idx === suggestions.length - 1 ? 'none' : '1px solid #eee',
+                                                        cursor: 'pointer',
+                                                        fontSize: '13px'
+                                                    }}
+                                                    onMouseOver={e => (e.currentTarget.style.backgroundColor = '#f7fafc')}
+                                                    onMouseOut={e => (e.currentTarget.style.backgroundColor = 'white')}
+                                                >
+                                                    <div style={{ fontWeight: 'bold' }}>{s.name} ({s.name_kana})</div>
+                                                    <div style={{ fontSize: '11px', color: '#666' }}>{s.phone} / {s.email}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </label>
                                 <label>
                                     <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>電話番号</span>
