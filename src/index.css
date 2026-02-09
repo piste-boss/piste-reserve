@@ -87,9 +87,9 @@ a {
   transform: scale(0.98);
 }
 
-/* Admin & PC Utilities */
+/* Admin Layout (Default PC First) */
 .admin-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
   width: 100%;
@@ -97,49 +97,42 @@ a {
 
 .admin-layout {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  /* Always row */
+  align-items: flex-start;
   gap: 20px;
 }
 
-@media (min-width: 768px) {
-  .admin-layout {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-
-  .admin-sidebar {
-    width: 250px;
-    flex-shrink: 0;
-  }
-
-  .admin-content {
-    flex-grow: 1;
-    min-width: 0;
-    /* overflow fix */
-  }
-
-  /* Responsive Grid for Forms */
-  .grid-2-cols {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-
-  .admin-nav-menu {
-    flex-direction: column;
-  }
+.admin-sidebar {
+  width: 250px;
+  /* Always fixed width */
+  flex-shrink: 0;
 }
 
+/* Sidebar Navigation: Always Vertical */
 .admin-nav-menu {
   display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  white-space: nowrap;
-  padding-bottom: 5px;
-  /* Scrollbar spacing */
+  flex-direction: column;
+  /* Always vertical */
+  gap: 5px;
+  overflow-x: visible;
+  white-space: normal;
+  padding-bottom: 0;
 }
 
-/* Base table styles for better PC view */
+.admin-content {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+/* Responsive Grid for Forms */
+.grid-2-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Base table styles */
 table {
   width: 100%;
   border-collapse: collapse;
