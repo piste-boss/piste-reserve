@@ -18,6 +18,9 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     const [deleteTarget, setDeleteTarget] = useState<any>(null);
     const [customers, setCustomers] = useState<any[]>([]);
     const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [isBulkEditing, setIsBulkEditing] = useState(false);
+    const [bulkText, setBulkText] = useState('');
+    const [bulkConfirm, setBulkConfirm] = useState<{ name: string, count: number, reservations: any[] } | null>(null);
 
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
@@ -178,6 +181,99 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         }
     };
 
+    const handleBulkRegister = async () => {
+        if (!bulkText.trim()) return;
+
+        const lines = bulkText.split('\n').map(l => l.trim()).filter(l => l);
+        if (lines.length < 1) return;
+
+        let nameCandidate = '';
+        let menuId = '';
+        const dateTimes: { date: string, time: string }[] = [];
+
+        // Identify menu first to exclude it from name candidates
+        lines.forEach(line => {
+            const foundMenu = menus.find(m => line.includes(m.label));
+            if (foundMenu) menuId = foundMenu.id;
+        });
+
+        // Identify Date/Times and Name
+        lines.forEach(line => {
+            const dateMatch = line.match(/(\d+)月(\d+)日\s*(\d+)[:：](\d+)/);
+            if (dateMatch) {
+                const m = dateMatch[1].padStart(2, '0');
+                const d = dateMatch[2].padStart(2, '0');
+                const hh = dateMatch[3].padStart(2, '0');
+                const mm = dateMatch[4].padStart(2, '0');
+                const y = new Date().getFullYear();
+                dateTimes.push({
+                    date: `${y}-${m}-${d}`,
+                    time: `${hh}:${mm}`
+                });
+            } else if (!menus.some(m => line.includes(m.label))) {
+                // Not a menu and not a date -> likely a name
+                if (!nameCandidate) {
+                    nameCandidate = line.replace(/様$/, '');
+                }
+            }
+        });
+
+        if (!nameCandidate) {
+            alert('お名前が見つかりませんでした');
+            return;
+        }
+
+        if (!dateTimes.length) {
+            alert('日付と時間が見つかりませんでした');
+            return;
+        }
+
+        // Search for existing customer (match by name or katakana)
+        const matchedCustomer = customers.find(c =>
+            c.name === nameCandidate ||
+            c.name_kana === nameCandidate ||
+            (c.name_kana && nameCandidate.includes(c.name_kana)) ||
+            (c.name && nameCandidate.includes(c.name))
+        );
+
+        const finalName = matchedCustomer ? matchedCustomer.name : nameCandidate;
+
+        const newReservations = dateTimes.map(dt => ({
+            reservation_date: dt.date,
+            reservation_time: dt.time,
+            name: finalName,
+            name_kana: matchedCustomer?.name_kana || '',
+            phone: matchedCustomer?.phone || '',
+            email: matchedCustomer?.email || '',
+            menu_id: menuId || menus[0]?.id,
+            source: 'admin'
+        }));
+
+        setBulkConfirm({
+            name: finalName,
+            count: newReservations.length,
+            reservations: newReservations
+        });
+    };
+
+    const executeBulkRegister = async () => {
+        if (!bulkConfirm) return;
+        setLoading(true);
+        const { error } = await supabase.from('reservations').insert(bulkConfirm.reservations);
+
+        if (error) {
+            alert('登録に失敗しました: ' + error.message);
+        } else {
+            const count = bulkConfirm.count;
+            setBulkConfirm(null);
+            setBulkText('');
+            setIsBulkEditing(false);
+            fetchReservations();
+            alert(`${count}件の予約を登録しました`);
+        }
+        setLoading(false);
+    };
+
     const openNewReservation = () => {
         setEditForm({
             reservation_date: formatDate(selectedDate),
@@ -259,6 +355,30 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                     </div>
                 </div>
             )}
+            {bulkConfirm && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1001
+                }}>
+                    <div style={{ background: 'white', padding: '25px', borderRadius: '12px', minWidth: '350px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+                        <h4 style={{ marginTop: 0, color: 'var(--piste-dark-blue)' }}>一括登録の確認</h4>
+                        <div style={{ margin: '15px 0', fontSize: '15px' }}>
+                            <strong>{bulkConfirm.name} 様</strong> のご予約を<strong>{bulkConfirm.count}件</strong>、登録してもよろしいですか？
+                        </div>
+                        <div style={{ maxHeight: '150px', overflowY: 'auto', background: '#f7fafc', padding: '10px', borderRadius: '6px', fontSize: '12px', marginBottom: '20px' }}>
+                            {bulkConfirm.reservations.map((r, i) => (
+                                <div key={i} style={{ padding: '4px 0', borderBottom: i === bulkConfirm.reservations.length - 1 ? 'none' : '1px solid #edf2f7' }}>
+                                    {r.reservation_date} {r.reservation_time} - {menus.find(m => m.id === r.menu_id)?.label}
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button onClick={() => setBulkConfirm(null)} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #ddd', background: 'white', cursor: 'pointer' }}>キャンセル</button>
+                            <button onClick={executeBulkRegister} style={{ padding: '10px 20px', borderRadius: '6px', border: 'none', background: 'var(--piste-green)', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}>はい、登録します</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div style={{ display: 'flex', gap: '20px', flexDirection: 'row', flexWrap: 'wrap' }}>
                 {/* Calendar Section */}
                 <div className="card" style={{ flex: '1', minWidth: '300px', maxWidth: '400px' }}>
@@ -283,8 +403,35 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                 <div style={{ flex: '2', minWidth: '300px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                         <h3 style={{ margin: 0 }}>{formatDate(selectedDate)} の予約</h3>
-                        <button className="btn-primary" onClick={openNewReservation} style={{ fontSize: '13px', padding: '8px 16px' }}>＋ 新規予約</button>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button className="btn-secondary" onClick={() => setIsBulkEditing(!isBulkEditing)} style={{ fontSize: '13px', padding: '8px 16px' }}>一括登録</button>
+                            <button className="btn-primary" onClick={openNewReservation} style={{ fontSize: '13px', padding: '8px 16px' }}>＋ 新規予約</button>
+                        </div>
                     </div>
+
+                    {isBulkEditing && (
+                        <div className="card" style={{ marginBottom: '20px', border: '2px solid var(--piste-green)' }}>
+                            <h4 style={{ marginTop: 0, marginBottom: '10px' }}>一括登録</h4>
+                            <p style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
+                                テキストを貼り付けて複数の予約を一度に作成します。<br />
+                                形式例：<br />
+                                石川卓様<br />
+                                パーソナル<br />
+                                2月14日 19:00<br />
+                                2月21日 20:00
+                            </p>
+                            <textarea
+                                value={bulkText}
+                                onChange={e => setBulkText(e.target.value)}
+                                placeholder="ここに入力..."
+                                style={{ width: '100%', height: '150px', padding: '10px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', marginBottom: '10px' }}
+                            />
+                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                <button type="button" className="btn-secondary" onClick={() => setIsBulkEditing(false)}>キャンセル</button>
+                                <button type="button" className="btn-primary" onClick={handleBulkRegister} disabled={loading}>一括登録を実行</button>
+                            </div>
+                        </div>
+                    )}
 
                     {isEditing && (
                         <div className="card" style={{ marginBottom: '20px', border: '2px solid var(--piste-dark-blue)' }}>
