@@ -111,89 +111,187 @@ const AdminDashboard: React.FC = () => {
     };
 
     return (
-        <div className="container" style={{ maxWidth: '1200px' }}>
-            <h2 style={{ marginBottom: '20px', color: 'var(--piste-dark-blue)' }}>管理者ダッシュボード</h2>
+        <div className="admin-container">
+            <header style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ color: 'var(--piste-dark-blue)', margin: 0 }}>管理者ダッシュボード</h2>
+                <a href="/" style={{ fontSize: '14px', color: 'var(--piste-text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span>&larr;</span> 予約サイトへ戻る
+                </a>
+            </header>
 
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-                <button onClick={() => setActiveTab('reservations')} style={{ padding: '10px 20px', borderRadius: '8px', background: activeTab === 'reservations' ? 'var(--piste-dark-blue)' : '#f0f2f5', color: activeTab === 'reservations' ? 'white' : '#555' }}>予約管理</button>
-                <button onClick={() => setActiveTab('holidays')} style={{ padding: '10px 20px', borderRadius: '8px', background: activeTab === 'holidays' ? 'var(--piste-dark-blue)' : '#f0f2f5', color: activeTab === 'holidays' ? 'white' : '#555' }}>休日設定</button>
-                <button onClick={() => setActiveTab('menus')} style={{ padding: '10px 20px', borderRadius: '8px', background: activeTab === 'menus' ? 'var(--piste-dark-blue)' : '#f0f2f5', color: activeTab === 'menus' ? 'white' : '#555' }}>メニュー管理</button>
-                <button onClick={() => setActiveTab('customers')} style={{ padding: '10px 20px', borderRadius: '8px', background: activeTab === 'customers' ? 'var(--piste-dark-blue)' : '#f0f2f5', color: activeTab === 'customers' ? 'white' : '#555' }}>顧客リスト</button>
-            </div>
-
-            {loading && <div style={{ padding: '20px', textAlign: 'center' }}>読み込み中...</div>}
-
-            {activeTab === 'reservations' && !loading && (
-                <div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-                        <button className="btn-primary" onClick={() => { setEditForm({}); setIsEditing(true); }}>新規予約登録</button>
+            <div className="admin-layout">
+                {/* Sidebar Navigation */}
+                <nav className="admin-sidebar card" style={{ padding: '10px', height: 'fit-content' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        <button
+                            onClick={() => setActiveTab('reservations')}
+                            style={{
+                                padding: '12px 15px',
+                                borderRadius: '8px',
+                                background: activeTab === 'reservations' ? 'var(--piste-dark-blue)' : 'transparent',
+                                color: activeTab === 'reservations' ? 'white' : '#555',
+                                textAlign: 'left',
+                                fontWeight: activeTab === 'reservations' ? 'bold' : 'normal'
+                            }}
+                        >
+                            📅 予約管理
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('holidays')}
+                            style={{
+                                padding: '12px 15px',
+                                borderRadius: '8px',
+                                background: activeTab === 'holidays' ? 'var(--piste-dark-blue)' : 'transparent',
+                                color: activeTab === 'holidays' ? 'white' : '#555',
+                                textAlign: 'left',
+                                fontWeight: activeTab === 'holidays' ? 'bold' : 'normal'
+                            }}
+                        >
+                            🎌 休日設定
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('menus')}
+                            style={{
+                                padding: '12px 15px',
+                                borderRadius: '8px',
+                                background: activeTab === 'menus' ? 'var(--piste-dark-blue)' : 'transparent',
+                                color: activeTab === 'menus' ? 'white' : '#555',
+                                textAlign: 'left',
+                                fontWeight: activeTab === 'menus' ? 'bold' : 'normal'
+                            }}
+                        >
+                            📋 メニュー管理
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('customers')}
+                            style={{
+                                padding: '12px 15px',
+                                borderRadius: '8px',
+                                background: activeTab === 'customers' ? 'var(--piste-dark-blue)' : 'transparent',
+                                color: activeTab === 'customers' ? 'white' : '#555',
+                                textAlign: 'left',
+                                fontWeight: activeTab === 'customers' ? 'bold' : 'normal'
+                            }}
+                        >
+                            👥 顧客リスト
+                        </button>
                     </div>
+                </nav>
 
-                    {isEditing && (
-                        <div className="card" style={{ background: '#f8f9fa' }}>
-                            <h3>{editForm.id ? '予約変更' : '新規予約登録'}</h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                <label>
-                                    日付: <input type="date" value={editForm.reservation_date || ''} onChange={e => setEditForm({ ...editForm, reservation_date: e.target.value })} style={{ width: '100%', padding: '8px' }} />
-                                </label>
-                                <label>
-                                    時間: <input type="time" value={editForm.reservation_time || ''} onChange={e => setEditForm({ ...editForm, reservation_time: e.target.value })} style={{ width: '100%', padding: '8px' }} />
-                                </label>
-                                <label>
-                                    名前: <input type="text" value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value })} style={{ width: '100%', padding: '8px' }} />
-                                </label>
-                                <label>
-                                    電話: <input type="tel" value={editForm.phone || ''} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} style={{ width: '100%', padding: '8px' }} />
-                                </label>
-                                <label>
-                                    メール: <input type="email" value={editForm.email || ''} onChange={e => setEditForm({ ...editForm, email: e.target.value })} style={{ width: '100%', padding: '8px' }} />
-                                </label>
-                                <label>
-                                    メニュー:
-                                    <select value={editForm.menu_id || ''} onChange={e => setEditForm({ ...editForm, menu_id: e.target.value })} style={{ width: '100%', padding: '8px' }}>
-                                        <option value="">選択してください</option>
-                                        {menus.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-                                    </select>
-                                </label>
+                {/* Main Content Area */}
+                <main className="admin-content">
+                    {loading && <div className="card" style={{ textAlign: 'center', padding: '40px' }}>読み込み中...</div>}
+
+                    {activeTab === 'reservations' && !loading && (
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                <h3 style={{ margin: 0 }}>予約一覧</h3>
+                                <button className="btn-primary" onClick={() => { setEditForm({}); setIsEditing(true); }}>＋ 新規予約</button>
                             </div>
-                            <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                                <button className="btn-primary" onClick={editForm.id ? handleSaveReservation : handleRegister}>保存</button>
-                                <button className="btn-secondary" onClick={() => setIsEditing(false)}>キャンセル</button>
+
+                            {isEditing && (
+                                <div className="card" style={{ marginBottom: '20px', border: '2px solid var(--piste-dark-blue)' }}>
+                                    <h4 style={{ marginTop: 0, marginBottom: '15px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
+                                        {editForm.id ? '予約情報の変更' : '新規予約の登録'}
+                                    </h4>
+                                    <div className="grid-2-cols" style={{ display: 'grid', gap: '15px', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                                        <label>
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>日付</span>
+                                            <input type="date" value={editForm.reservation_date || ''} onChange={e => setEditForm({ ...editForm, reservation_date: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                                        </label>
+                                        <label>
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>時間</span>
+                                            <input type="time" value={editForm.reservation_time || ''} onChange={e => setEditForm({ ...editForm, reservation_time: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                                        </label>
+                                        <label>
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>お名前</span>
+                                            <input type="text" value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                                        </label>
+                                        <label>
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>電話番号</span>
+                                            <input type="tel" value={editForm.phone || ''} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                                        </label>
+                                        <label>
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>メールアドレス</span>
+                                            <input type="email" value={editForm.email || ''} onChange={e => setEditForm({ ...editForm, email: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }} />
+                                        </label>
+                                        <label>
+                                            <span style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>メニュー</span>
+                                            <select value={editForm.menu_id || ''} onChange={e => setEditForm({ ...editForm, menu_id: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }}>
+                                                <option value="">選択してください</option>
+                                                {menus.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                        <button className="btn-secondary" onClick={() => setIsEditing(false)}>キャンセル</button>
+                                        <button className="btn-primary" onClick={editForm.id ? handleSaveReservation : handleRegister}>保存する</button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', whiteSpace: 'nowrap' }}>
+                                        <thead>
+                                            <tr>
+                                                <th>日時</th>
+                                                <th>お名前</th>
+                                                <th>連絡先</th>
+                                                <th>メニュー</th>
+                                                <th>経路</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {reservations.map(r => (
+                                                <tr key={r.id}>
+                                                    <td>
+                                                        <div style={{ fontWeight: 'bold' }}>{r.reservation_date}</div>
+                                                        <div style={{ fontSize: '12px', color: '#666' }}>{r.reservation_time}</div>
+                                                    </td>
+                                                    <td>{r.name}</td>
+                                                    <td>
+                                                        <div>{r.phone}</div>
+                                                        <div style={{ fontSize: '12px', color: '#666' }}>{r.email}</div>
+                                                    </td>
+                                                    <td>
+                                                        {menus.find(m => m.id === r.menu_id)?.label || r.menu_id}
+                                                    </td>
+                                                    <td>
+                                                        <span style={{
+                                                            fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
+                                                            background: r.source?.includes('ai') ? '#ebf8ff' : '#f0fff4',
+                                                            color: r.source?.includes('ai') ? '#2b6cb0' : '#2f855a'
+                                                        }}>
+                                                            {r.source?.includes('ai') ? 'AI' : 'Web'}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div style={{ display: 'flex', gap: '5px' }}>
+                                                            <button onClick={() => handleEdit(r)} style={{ padding: '6px 10px', borderRadius: '4px', background: '#edf2f7', fontSize: '12px' }}>編集</button>
+                                                            <button onClick={() => handleDelete(r.id)} style={{ padding: '6px 10px', borderRadius: '4px', background: '#fee2e2', color: 'red', fontSize: '12px' }}>削除</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {reservations.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: '#999' }}>予約データがありません</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px' }}>
-                            <thead>
-                                <tr style={{ background: '#f1f1f1', textAlign: 'left' }}>
-                                    <th style={{ padding: '10px' }}>日時</th>
-                                    <th style={{ padding: '10px' }}>名前</th>
-                                    <th style={{ padding: '10px' }}>メニュー</th>
-                                    <th style={{ padding: '10px' }}>アクション</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {reservations.map(r => (
-                                    <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
-                                        <td style={{ padding: '10px' }}>{r.reservation_date} {r.reservation_time}</td>
-                                        <td style={{ padding: '10px' }}>{r.name}</td>
-                                        <td style={{ padding: '10px' }}>{r.menu_id}</td>
-                                        <td style={{ padding: '10px' }}>
-                                            <button onClick={() => handleEdit(r)} style={{ marginRight: '5px', padding: '4px 8px', borderRadius: '4px', background: '#edf2f7' }}>編集</button>
-                                            <button onClick={() => handleDelete(r.id)} style={{ padding: '4px 8px', borderRadius: '4px', background: '#fee2e2', color: 'red' }}>削除</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {activeTab === 'holidays' && <HolidayManager />}
-            {activeTab === 'menus' && <MenuManager />}
-            {activeTab === 'customers' && <CustomerList />}
+                    {activeTab === 'holidays' && <div className="card"><HolidayManager /></div>}
+                    {activeTab === 'menus' && <div className="card"><MenuManager /></div>}
+                    {activeTab === 'customers' && <div className="card"><CustomerList /></div>}
+                </main>
+            </div>
         </div>
     );
 };

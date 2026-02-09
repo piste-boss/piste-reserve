@@ -82,6 +82,64 @@ a {
   box-shadow: 0 4px 14px rgba(142, 195, 31, 0.3);
 }
 
+/* Existing Button Active state */
 .btn-primary:active {
   transform: scale(0.98);
+}
+
+/* Admin & PC Utilities */
+.admin-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  width: 100%;
+}
+
+.admin-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .admin-layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .admin-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+  }
+
+  .admin-content {
+    flex-grow: 1;
+    min-width: 0;
+    /* overflow fix */
+  }
+
+  /* Responsive Grid for Forms */
+  .grid-2-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+}
+
+/* Base table styles for better PC view */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  background-color: #f8f9fa;
+  font-weight: 600;
 }
