@@ -7,10 +7,49 @@ const CustomerList: React.FC = () => {
 
     const fetchCustomers = async () => {
         setLoading(true);
-        // Profilesテーブル、もしくはReservationsからユニークな顧客を抽出
-        // ここではProfiles（ログインユーザー）を表示
-        const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-        if (data) setCustomers(data);
+        // Fetch registered profiles
+        const { data: profileData } = await supabase.from('profiles').select('*');
+        // Fetch all reservations to get guest names
+        const { data: resvData } = await supabase.from('reservations').select('name, name_kana, phone, email, line_user_id');
+
+        const mergedCustomers: any[] = [];
+        const seen = new Set();
+
+        // 1. Add from profiles
+        profileData?.forEach(p => {
+            const identifier = (p.name || '') + (p.phone || '');
+            if (p.name && !seen.has(identifier)) {
+                mergedCustomers.push({
+                    id: p.id,
+                    name: p.name,
+                    name_kana: p.name_kana,
+                    phone: p.phone,
+                    email: p.email,
+                    line_user_id: p.line_user_id,
+                    is_profile: true
+                });
+                seen.add(identifier);
+            }
+        });
+
+        // 2. Add from reservations (guests not in profiles)
+        resvData?.forEach(r => {
+            const identifier = (r.name || '') + (r.phone || '');
+            if (r.name && !seen.has(identifier)) {
+                mergedCustomers.push({
+                    id: `resv-${identifier}`,
+                    name: r.name,
+                    name_kana: r.name_kana,
+                    phone: r.phone,
+                    email: r.email,
+                    line_user_id: r.line_user_id,
+                    is_profile: false
+                });
+                seen.add(identifier);
+            }
+        });
+
+        setCustomers(mergedCustomers.sort((a, b) => (a.name_kana || a.name).localeCompare(b.name_kana || b.name, 'ja')));
         setLoading(false);
     };
 
@@ -36,7 +75,10 @@ const CustomerList: React.FC = () => {
                     <tbody>
                         {customers.map(c => (
                             <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
-                                <td style={{ padding: '10px' }}>{c.name || '未設定'}</td>
+                                <td style={{ padding: '10px' }}>
+                                    <div style={{ fontWeight: 'bold' }}>{c.name || '未設定'}</div>
+                                    {c.name_kana && <div style={{ fontSize: '11px', color: '#666' }}>{c.name_kana}</div>}
+                                </td>
                                 <td style={{ padding: '10px' }}>{c.phone || '-'}</td>
                                 <td style={{ padding: '10px' }}>{c.email || '-'}</td>
                                 <td style={{ padding: '10px' }}>
