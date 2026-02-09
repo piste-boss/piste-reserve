@@ -4,6 +4,7 @@ import ReservationManager from './admin/ReservationManager';
 import HolidayManager from './admin/HolidayManager';
 import MenuManager from './admin/MenuManager';
 import CustomerList from './admin/CustomerList';
+import AdminAccountSettings from './admin/AdminAccountSettings';
 
 const AdminDashboard: React.FC = () => {
     const [activeTab, setActiveTab] = useState('reservations');
@@ -65,6 +66,12 @@ const AdminDashboard: React.FC = () => {
                     >
                         顧客リスト
                     </button>
+                    <button
+                        className={`admin-menu-item ${activeTab === 'settings' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('settings')}
+                    >
+                        管理者設定
+                    </button>
                 </nav>
 
                 {/* Main Content Area */}
@@ -73,6 +80,7 @@ const AdminDashboard: React.FC = () => {
                     {activeTab === 'holidays' && <HolidayManager />}
                     {activeTab === 'menus' && <MenuManager />}
                     {activeTab === 'customers' && <CustomerList />}
+                    {activeTab === 'settings' && <AdminAccountSettings />}
                 </main>
             </div>
         </div>
