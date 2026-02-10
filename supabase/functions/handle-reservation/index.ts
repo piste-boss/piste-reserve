@@ -94,7 +94,9 @@ serve(async (req) => {
 
     // 各種メール通知（管理者・ユーザー）
     if (RESEND_API_KEY) {
-      const signature = `\n\n☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆\nPiste（ピステ）\nhttps://piste-i.com\ntel:09099480878\n〒447-0042\n愛知県碧南市中後町3ー3中央ビル1F`;
+      const lineLink = "https://liff.line.me/2009052718-9rclRq3Z";
+      const lineNotice = `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n【LINE連携のご案内】\nLINE連携をしていただくと、予約のリマインド通知をLINEで受け取れるほか、AIチャットでの予約確認・変更もよりスムーズになります。\nぜひ以下のリンクから連携をお願いいたします。\n${lineLink}\n━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+      const signature = `${lineNotice}\n\n☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆\nPiste（ピステ）\nhttps://piste-i.com\ntel:09099480878\n〒447-0042\n愛知県碧南市中後町3ー3中央ビル1F`;
 
       // 管理者へ
       if (ADMIN_EMAIL) {
