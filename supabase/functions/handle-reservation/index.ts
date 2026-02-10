@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzfrCsbZkBW7koRl73ArqxFt9BlvEv3Wy_Ezld9L0uiOEsdBkmNf_6aKm7v_Ub9oiyt/exec";
 const LINE_CHANNEL_ACCESS_TOKEN = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
@@ -7,10 +8,15 @@ const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "onboarding@resend.dev";
 
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
 serve(async (req) => {
   try {
     const body = await req.json()
     const { type, record, old_record } = body
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // UPDATE時の重複通知・不要通知を防ぐチェック
     if (type === 'UPDATE') {
@@ -52,11 +58,6 @@ serve(async (req) => {
 
         if (type === 'INSERT' && gasData?.eventId) {
           console.log("eventIdを取得成功。DB更新開始:", gasData.eventId);
-          const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-          const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-          const supabase = createClient(supabaseUrl, supabaseKey);
-
           await supabase
             .from('reservations')
             .update({ google_event_id: gasData.eventId })
@@ -72,7 +73,32 @@ serve(async (req) => {
     // 基本情報
     const dateStr = currentRecord.reservation_date;
     const timeStr = currentRecord.reservation_time;
-    const menuName = getMenuName(currentRecord.menu_id);
+
+    // メニュー名をDBから取得
+    let menuName = currentRecord.menu_id;
+    try {
+      const { data: menuData } = await supabase
+        .from('menus')
+        .select('label')
+        .eq('id', currentRecord.menu_id)
+        .single();
+      if (menuData?.label) {
+        menuName = menuData.label;
+      } else {
+        // フォールバック（古い静的定義）
+        const fallbackMenus: Record<string, string> = {
+          'personal-20': 'パーソナルトレーニング',
+          'trial-60': '無料体験',
+          'entry-30': '入会手続き',
+          'online-30': 'オンライン',
+          'first-60': '初回パーソナル',
+        };
+        menuName = fallbackMenus[currentRecord.menu_id] || currentRecord.menu_id;
+      }
+    } catch (e) {
+      console.error("メニュー名取得エラー:", e);
+    }
+
     const userName = currentRecord.name || "不明";
     const userPhone = currentRecord.phone || "不明";
     const userEmail = currentRecord.email || "不明";
@@ -151,25 +177,14 @@ async function sendEmail(to: string, subject: string, text: string) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${RESEND_API_KEY}`
+        "Authorization": `Bearer ${Deno.env.get("RESEND_API_KEY")}`
       },
-      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject: subject, text: text })
+      body: JSON.stringify({ from: Deno.env.get("FROM_EMAIL") || "onboarding@resend.dev", to: [to], subject: subject, text: text })
     });
     console.log("Email送信結果:", await res.json());
   } catch (e) {
     console.error("Email送信失敗:", e);
   }
-}
-
-function getMenuName(id: string) {
-  const menus: Record<string, string> = {
-    'personal-20': 'パーソナルトレーニング',
-    'trial-60': '無料体験',
-    'entry-30': '入会手続き',
-    'online-30': 'オンライン',
-    'first-60': '初回パーソナル',
-  };
-  return menus[id] || id;
 }
 
 async function sendLineMessage(userId: string, text: string) {
@@ -178,7 +193,7 @@ async function sendLineMessage(userId: string, text: string) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
+        "Authorization": `Bearer ${Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN")}`
       },
       body: JSON.stringify({ to: userId, messages: [{ type: "text", text }] })
     });
