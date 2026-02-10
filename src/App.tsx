@@ -343,6 +343,34 @@ const App: React.FC = () => {
         {step === 'COMPLETE' && (
           <div className="card" style={{ textAlign: 'center' }}>
             <h2>予約が完了しました。</h2>
+
+            <div style={{ margin: '20px 0', padding: '15px', backgroundColor: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'left' }}>
+              <h3 style={{ fontSize: '15px', color: '#166534', marginBottom: '8px', fontWeight: 'bold' }}>🔔 LINE通知を受け取るには</h3>
+              <p style={{ fontSize: '14px', color: '#15803d', lineHeight: '1.6' }}>
+                予約完了やリマインドの通知を受け取るには、Piste公式アカウントの<strong>友だち追加</strong>が必要です。<br />
+                まだの方は、以下のボタンから追加をお願いします。
+              </p>
+              <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                <a
+                  href="https://line.me/R/ti/p/@hiy2187j"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    backgroundColor: '#06C755',
+                    color: 'white',
+                    padding: '10px 20px',
+                    borderRadius: '20px',
+                    textDecoration: 'none',
+                    fontWeight: 'bold',
+                    fontSize: '14px'
+                  }}
+                >
+                  友だち追加する
+                </a>
+              </div>
+            </div>
+
             {!isLinked && (
               <button
                 className="btn-primary"
