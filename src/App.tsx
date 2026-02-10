@@ -357,7 +357,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {step === 'ADMIN' && <AdminDashboard />}
+
       </main>
       <button
         onClick={() => setIsChatOpen(true)}
