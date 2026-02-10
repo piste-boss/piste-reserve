@@ -98,16 +98,41 @@ serve(async (req) => {
 
       // 管理者へ
       if (ADMIN_EMAIL) {
-        let adminSubject = `【Piste】予約通知（${userName} 様）`;
-        let adminBody = `お名前: ${userName} 様\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n電話: ${userPhone}\nメール: ${userEmail}`;
+        let actionLabel = "";
+        if (type === 'INSERT') actionLabel = "新規予約";
+        else if (type === 'UPDATE') actionLabel = "予約変更";
+        else if (type === 'DELETE') actionLabel = "キャンセル";
+
+        const adminSubject = `【Piste】${actionLabel}通知（${userName} 様）`;
+        let adminBody = `${actionLabel}内容:\nお名前: ${userName} 様\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n電話: ${userPhone}\nメール: ${userEmail}`;
+
+        if (type === 'DELETE' && currentRecord.cancel_reason) {
+          adminBody += `\nキャンセル理由: ${currentRecord.cancel_reason}`;
+        }
+
         await sendEmail(ADMIN_EMAIL, adminSubject, adminBody);
       }
 
       // ユーザーへ (LINE連携していない場合)
       if (!lineUserId && userEmail !== "不明") {
-        let userSubject = `【Piste】予約確定のお知らせ`;
-        let userBody = `${userName} 様\n\nご予約が確定いたしました。\n\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n\n当日お会いできるのを楽しみにしております。${signature}`;
-        await sendEmail(userEmail, userSubject, userBody);
+        let userSubject = "";
+        let userBody = "";
+
+        if (type === 'INSERT') {
+          userSubject = `【Piste】予約確定のお知らせ`;
+          userBody = `${userName} 様\n\nご予約が確定いたしました。\n\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n\n当日お会いできるのを楽しみにしております。${signature}`;
+        } else if (type === 'UPDATE') {
+          userSubject = `【Piste】予約変更のお知らせ`;
+          userBody = `${userName} 様\n\n予約内容が変更されました。\n\n新日時: ${dateStr} ${timeStr}〜\n新メニュー: ${menuName}\n\n当日お待ちしております。${signature}`;
+        } else if (type === 'DELETE') {
+          const reasonStr = currentRecord.cancel_reason ? `\n理由: ${currentRecord.cancel_reason}` : "";
+          userSubject = `【Piste】予約キャンセルのお知らせ`;
+          userBody = `${userName} 様\n\n予約のキャンセルを承りました。\n\n日時: ${dateStr} ${timeStr}${reasonStr}\n\nまたのご利用をお待ちしております。${signature}`;
+        }
+
+        if (userSubject && userBody) {
+          await sendEmail(userEmail, userSubject, userBody);
+        }
       }
     }
 
