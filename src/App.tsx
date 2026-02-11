@@ -95,15 +95,19 @@ const App: React.FC = () => {
         try {
           const { name, phone, email } = JSON.parse(tempAuthData);
           if (name && phone) {
-            const { data: newProfile, error } = await supabase
-              .from('profiles')
-              .insert([{ id: userId, name, phone, email }])
-              .select()
-              .single();
+            // 直接INSERTではなく、RPC（関数）経由で保存（RLS回避のため）
+            const { data: newProfile, error } = await supabase.rpc('create_profile_securely', {
+              _id: userId,
+              _name: name,
+              _phone: phone,
+              _email: email
+            });
 
             if (!error && newProfile) {
               data = newProfile;
               localStorage.removeItem('tempAuthData'); // 完了したら削除
+            } else {
+              console.error("RPC Error:", error);
             }
           }
         } catch (e) {
