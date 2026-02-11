@@ -82,11 +82,36 @@ const App: React.FC = () => {
   }, []);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
+    let { data } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
+
+    // 初回ログイン時（プロファイル未作成）かつローカルストレージに情報がある場合
+    if (!data) {
+      const tempAuthData = localStorage.getItem('tempAuthData');
+      if (tempAuthData) {
+        try {
+          const { name, phone, email } = JSON.parse(tempAuthData);
+          if (name && phone) {
+            const { data: newProfile, error } = await supabase
+              .from('profiles')
+              .insert([{ id: userId, name, phone, email }])
+              .select()
+              .single();
+
+            if (!error && newProfile) {
+              data = newProfile;
+              localStorage.removeItem('tempAuthData'); // 完了したら削除
+            }
+          }
+        } catch (e) {
+          console.error("Profile creation error", e);
+        }
+      }
+    }
+
     if (data) {
       setProfile(data);
       if (data.line_user_id) {
@@ -101,15 +126,21 @@ const App: React.FC = () => {
     e.preventDefault();
     setAuthLoading(true);
     try {
+      // 一時的にローカルストレージに保存（ログイン後にプロフィール作成するため）
+      localStorage.setItem('tempAuthData', JSON.stringify({
+        name: authName,
+        phone: authPhone,
+        email: authEmail
+      }));
+
       const { error } = await supabase.auth.signInWithOtp({
         email: authEmail,
-        options: {
-          emailRedirectTo: window.location.origin,
-        }
+        options: { emailRedirectTo: window.location.origin }
       });
       if (error) throw error;
       alert('ログインメールを送信しました！');
     } catch (err) {
+      console.error(err);
       alert('エラーが発生しました。');
     } finally {
       setAuthLoading(false);
