@@ -10,7 +10,11 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'name', ''),
     COALESCE(NEW.raw_user_meta_data->>'phone', ''),
     NEW.email
-  );
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    phone = EXCLUDED.phone,
+    email = EXCLUDED.email;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
