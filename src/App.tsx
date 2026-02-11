@@ -195,15 +195,33 @@ const App: React.FC = () => {
       const profileData = await liff.getProfile();
       const lineUserId = profileData.userId;
 
-      await supabase.from('reservations').update({ line_user_id: lineUserId }).eq('id', lastReservationId);
+      console.log("LINE Profile:", profileData);
+
+      // 予約テーブルの更新（これはRLSで誰でも更新できるかもしれないが、念のためエラーチェック）
+      const { error: resError } = await supabase.from('reservations').update({ line_user_id: lineUserId }).eq('id', lastReservationId);
+      if (resError) throw new Error(`Reservation update failed: ${resError.message}`);
+
       if (session) {
-        await supabase.from('profiles').update({ line_user_id: lineUserId }).eq('id', session.user.id);
+        // プロフィールの更新（RPC関数を使用）
+        const { error: profError } = await supabase.rpc('update_profile_line_id', {
+          _id: session.user.id,
+          _line_user_id: lineUserId
+        });
+
+        if (profError) {
+          // RPCがない場合のフォールバック（直接更新を試みる）
+          console.warn("RPC update failed, trying direct update...", profError);
+          const { error: directError } = await supabase.from('profiles').update({ line_user_id: lineUserId }).eq('id', session.user.id);
+          if (directError) throw new Error(`Profile update failed: ${directError.message}`);
+        }
       }
 
       setIsLinked(true);
       alert("LINE連携が完了しました！");
-    } catch (err) {
-      alert("連携に失敗しました。");
+    } catch (err: any) {
+      console.error("LINE Linking Error:", err);
+      // エラーの詳細を表示
+      alert(`連携に失敗しました。\n${err.message || JSON.stringify(err)}`);
     } finally {
       setIsLinking(false);
     }
