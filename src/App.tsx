@@ -105,10 +105,6 @@ const App: React.FC = () => {
         email: authEmail,
         options: {
           emailRedirectTo: window.location.origin,
-          data: {
-            name: authName,
-            phone: authPhone
-          }
         }
       });
       if (error) throw error;
