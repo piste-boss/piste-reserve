@@ -55,6 +55,8 @@ const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<{ name?: string, phone?: string, email?: string, line_user_id?: string } | null>(null);
   const [authEmail, setAuthEmail] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authPhone, setAuthPhone] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
   const [data, setData] = useState<ReservationData>({
@@ -101,7 +103,13 @@ const App: React.FC = () => {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: authEmail,
-        options: { emailRedirectTo: window.location.origin }
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: {
+            name: authName,
+            phone: authPhone
+          }
+        }
       });
       if (error) throw error;
       alert('ログインメールを送信しました！');
@@ -302,8 +310,18 @@ const App: React.FC = () => {
         {step === 'AUTH' && (
           <div className="card">
             <h2 style={{ fontSize: '18px', marginBottom: '10px' }}>ログイン</h2>
-            <p style={{ fontSize: '13px', color: 'var(--piste-text-muted)', marginBottom: '20px' }}>メールアドレスを入力してください。</p>
+            <p style={{ fontSize: '13px', color: 'var(--piste-text-muted)', marginBottom: '20px' }}>情報を入力してください。</p>
             <form onSubmit={handleLogin}>
+              <input
+                type="text" required placeholder="お名前" className="card"
+                style={{ width: '100%', padding: '12px', marginBottom: '15px' }}
+                value={authName} onChange={(e) => setAuthName(e.target.value)}
+              />
+              <input
+                type="tel" required placeholder="電話番号" className="card"
+                style={{ width: '100%', padding: '12px', marginBottom: '15px' }}
+                value={authPhone} onChange={(e) => setAuthPhone(e.target.value)}
+              />
               <input
                 type="email" required placeholder="example@piste.com" className="card"
                 style={{ width: '100%', padding: '12px', marginBottom: '15px' }}
