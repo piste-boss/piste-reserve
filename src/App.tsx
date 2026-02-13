@@ -65,6 +65,7 @@ const App: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastReservationId, setLastReservationId] = useState<string | null>(null);
+  const [liffLineUserId, setLiffLineUserId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -88,30 +89,41 @@ const App: React.FC = () => {
       .eq('id', userId)
       .single();
 
-    // 初回ログイン時（プロファイル未作成）かつローカルストレージに情報がある場合
-    if (!data) {
+    // プロファイル未作成 OR 存在するが名前・電話が空（トリガーが空で作成した場合）
+    const profileNeedsUpdate = !data || (!data.name && !data.phone);
+
+    if (profileNeedsUpdate) {
       const tempAuthData = localStorage.getItem('tempAuthData');
       if (tempAuthData) {
         try {
           const { name, phone, email } = JSON.parse(tempAuthData);
           if (name && phone) {
-            // 直接INSERTではなく、RPC（関数）経由で保存（RLS回避のため）
-            const { data: newProfile, error } = await supabase.rpc('create_profile_securely', {
-              _id: userId,
-              _name: name,
-              _phone: phone,
-              _email: email
-            });
-
-            if (!error && newProfile) {
-              data = newProfile;
-              localStorage.removeItem('tempAuthData'); // 完了したら削除
+            if (!data) {
+              // プロフィール行が存在しない → RPC で作成
+              const { data: newProfile, error } = await supabase.rpc('create_profile_securely', {
+                _id: userId, _name: name, _phone: phone, _email: email
+              });
+              if (!error && newProfile) {
+                data = newProfile;
+              } else {
+                console.error("RPC create error:", error);
+              }
             } else {
-              console.error("RPC Error:", error);
+              // プロフィール行は存在するが空 → 直接更新（RLS許可済み）
+              const { error } = await supabase
+                .from('profiles')
+                .update({ name, phone })
+                .eq('id', userId);
+              if (!error) {
+                data = { ...data, name, phone };
+              } else {
+                console.error("Profile update error:", error);
+              }
             }
+            localStorage.removeItem('tempAuthData');
           }
         } catch (e) {
-          console.error("Profile creation error", e);
+          console.error("Profile creation/update error", e);
         }
       }
     }
@@ -139,7 +151,10 @@ const App: React.FC = () => {
 
       const { error } = await supabase.auth.signInWithOtp({
         email: authEmail,
-        options: { emailRedirectTo: window.location.origin }
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: { name: authName, phone: authPhone }
+        }
       });
       if (error) throw error;
       alert('ログインメールを送信しました！');
@@ -151,28 +166,33 @@ const App: React.FC = () => {
     }
   };
 
+  // useEffect A: LIFF SDK初期化（マウント時1回のみ）
   useEffect(() => {
     const initLiff = async () => {
       try {
         await liff.init({ liffId: LIFF_ID });
         if (liff.isLoggedIn()) {
           const profileData = await liff.getProfile();
-          const lineUserId = profileData.userId;
+          setLiffLineUserId(profileData.userId);
 
-          // リダイレクト後に保留中の連携があれば実行
+          // 保留中の予約へのLINE ID紐付け
           const pendingReservationId = localStorage.getItem('pendingLineLinkReservationId');
           if (pendingReservationId) {
-            await supabase.from('reservations').update({ line_user_id: lineUserId }).eq('id', pendingReservationId);
+            const { error } = await supabase.from('reservations')
+              .update({ line_user_id: profileData.userId })
+              .eq('id', pendingReservationId);
             localStorage.removeItem('pendingLineLinkReservationId');
-            setIsLinked(true);
-            alert("LINE連携が完了しました！");
+            if (!error) {
+              setIsLinked(true);
+              alert("LINE連携が完了しました！");
+            }
           }
 
-          // プロフィールにLINE IDがなければ更新
-          if (session && profile && !profile.line_user_id) {
-            await supabase.from('profiles').update({ line_user_id: lineUserId }).eq('id', session.user.id);
-            setProfile(prev => prev ? { ...prev, line_user_id: lineUserId } : null);
-            setIsLinked(true);
+          // MyPageからのリダイレクト後の処理
+          const pendingMyPageLink = localStorage.getItem('pendingLineLinkFromMyPage');
+          if (pendingMyPageLink) {
+            localStorage.removeItem('pendingLineLinkFromMyPage');
+            setStep('MYPAGE');
           }
         }
       } catch (err) {
@@ -180,47 +200,69 @@ const App: React.FC = () => {
       }
     };
     initLiff();
-  }, [session, profile]);
+  }, []);
+
+  // useEffect B: プロフィールへのLINE ID同期（session, profile, liffLineUserIdが揃った時）
+  useEffect(() => {
+    if (!session || !profile || !liffLineUserId) return;
+    if (profile.line_user_id) return;
+
+    const syncLineId = async () => {
+      try {
+        const { error } = await supabase.rpc('update_profile_line_id', {
+          _id: session.user.id,
+          _line_user_id: liffLineUserId
+        });
+        if (error) {
+          console.warn("RPC failed, trying direct update:", error);
+          await supabase.from('profiles')
+            .update({ line_user_id: liffLineUserId })
+            .eq('id', session.user.id);
+        }
+        setProfile(prev => prev ? { ...prev, line_user_id: liffLineUserId } : null);
+        setIsLinked(true);
+      } catch (err) {
+        console.error("Profile LINE ID sync error:", err);
+      }
+    };
+    syncLineId();
+  }, [session, profile, liffLineUserId]);
 
   const handleLineLinking = async () => {
     if (!lastReservationId) return;
     setIsLinking(true);
     try {
-      if (!liff.isLoggedIn()) {
-        // リダイレクト前に予約IDを保存
+      const lineUserId = liffLineUserId;
+      if (!liff.isLoggedIn() || !lineUserId) {
         localStorage.setItem('pendingLineLinkReservationId', lastReservationId);
         liff.login({ redirectUri: window.location.href });
         return;
       }
-      const profileData = await liff.getProfile();
-      const lineUserId = profileData.userId;
 
-      console.log("LINE Profile:", profileData);
-
-      // 予約テーブルの更新（これはRLSで誰でも更新できるかもしれないが、念のためエラーチェック）
-      const { error: resError } = await supabase.from('reservations').update({ line_user_id: lineUserId }).eq('id', lastReservationId);
+      const { error: resError } = await supabase.from('reservations')
+        .update({ line_user_id: lineUserId })
+        .eq('id', lastReservationId);
       if (resError) throw new Error(`Reservation update failed: ${resError.message}`);
 
       if (session) {
-        // プロフィールの更新（RPC関数を使用）
         const { error: profError } = await supabase.rpc('update_profile_line_id', {
           _id: session.user.id,
           _line_user_id: lineUserId
         });
-
         if (profError) {
-          // RPCがない場合のフォールバック（直接更新を試みる）
-          console.warn("RPC update failed, trying direct update...", profError);
-          const { error: directError } = await supabase.from('profiles').update({ line_user_id: lineUserId }).eq('id', session.user.id);
+          console.warn("RPC failed, trying direct update:", profError);
+          const { error: directError } = await supabase.from('profiles')
+            .update({ line_user_id: lineUserId })
+            .eq('id', session.user.id);
           if (directError) throw new Error(`Profile update failed: ${directError.message}`);
         }
+        setProfile(prev => prev ? { ...prev, line_user_id: lineUserId } : null);
       }
 
       setIsLinked(true);
       alert("LINE連携が完了しました！");
     } catch (err: any) {
       console.error("LINE Linking Error:", err);
-      // エラーの詳細を表示
       alert(`連携に失敗しました。\n${err.message || JSON.stringify(err)}`);
     } finally {
       setIsLinking(false);
@@ -262,7 +304,7 @@ const App: React.FC = () => {
         menu_id: data.menu,
         source: 'web',
         user_id: session?.user.id,
-        line_user_id: profile?.line_user_id || (liff.isLoggedIn() ? liff.getContext()?.userId : null)
+        line_user_id: profile?.line_user_id || liffLineUserId || null
       };
 
       const { data: inserted, error } = await supabase.from('reservations').insert([reservation]).select();
@@ -274,7 +316,7 @@ const App: React.FC = () => {
 
       if (inserted && inserted.length > 0) setLastReservationId(inserted[0].id);
       setData({ ...data, ...formData });
-      if (profile?.line_user_id || (liff.isLoggedIn() && liff.getContext()?.userId)) setIsLinked(true);
+      if (profile?.line_user_id || liffLineUserId) setIsLinked(true);
       nextStep('COMPLETE');
     } catch (err) {
       alert('エラーが発生しました。');

@@ -59,16 +59,27 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
             const liff = (await import('@line/liff')).default;
             await liff.init({ liffId: LIFF_ID });
             if (!liff.isLoggedIn()) {
-                liff.login({ redirectUri: window.location.href });
+                // フラグを保存してApp.tsxのLIFF initに処理を委任
+                localStorage.setItem('pendingLineLinkFromMyPage', 'true');
+                liff.login({ redirectUri: window.location.origin });
                 return;
             }
-            const lineProfile = await liff.getProfile();
-            const { error } = await supabase
-                .from('profiles')
-                .update({ line_user_id: lineProfile.userId })
-                .eq('id', user.id);
 
-            if (error) throw error;
+            // 既にLIFFログイン済みの場合は直接更新
+            const lineProfile = await liff.getProfile();
+            const { error: rpcError } = await supabase.rpc('update_profile_line_id', {
+                _id: user.id,
+                _line_user_id: lineProfile.userId
+            });
+            if (rpcError) {
+                console.warn("RPC failed, using direct update:", rpcError);
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ line_user_id: lineProfile.userId })
+                    .eq('id', user.id);
+                if (error) throw error;
+            }
+
             alert('LINE連携が完了しました！');
             fetchData();
         } catch (err) {

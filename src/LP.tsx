@@ -133,7 +133,7 @@ const LP: React.FC = () => {
                 menu_id: data.menu,
                 source: 'web',
                 user_id: null, // メインアプリに合わせて明示的にnullを入れる
-                line_user_id: liff.isLoggedIn() ? liff.getContext()?.userId : null
+                line_user_id: liff.isLoggedIn() ? (liff.getContext()?.userId || null) : null
             };
 
             const { data: inserted, error } = await supabase
