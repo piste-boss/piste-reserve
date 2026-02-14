@@ -11,6 +11,7 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
     const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState<any>(null);
     const [isLiffLoading, setIsLiffLoading] = useState(false);
+    const [menus, setMenus] = useState<{ id: string; label: string }[]>([]);
 
     useEffect(() => {
         fetchData();
@@ -33,6 +34,12 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
                 .order('reservation_date', { ascending: true });
 
             setReservations(resvData || []);
+
+            // メニュー一覧の取得
+            const { data: menuData } = await supabase
+                .from('menus')
+                .select('id, label');
+            setMenus(menuData || []);
 
             // プロファイルの取得
             const { data: profileData } = await supabase
@@ -141,14 +148,7 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
     };
 
     const getMenuLabel = (menuId: string) => {
-        const menus: any = {
-            'personal-20': 'パーソナル',
-            'trial-60': '無料体験',
-            'entry-30': '入会手続き',
-            'online-30': 'オンライン',
-            'first-60': '初回パーソナル'
-        };
-        return menus[menuId] || 'パーソナルトレーニング';
+        return menus.find(m => m.id === menuId)?.label || menuId;
     };
 
     return (

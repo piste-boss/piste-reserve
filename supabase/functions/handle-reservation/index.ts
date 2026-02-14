@@ -33,12 +33,48 @@ serve(async (req) => {
     const currentRecord = type === 'DELETE' ? old_record : record
     console.log(`予約データ検知 [${type}]:`, currentRecord.id, currentRecord.source)
 
+    // 基本情報
+    const dateStr = currentRecord.reservation_date;
+    const timeStr = currentRecord.reservation_time;
+
+    // メニュー名をDBから取得（GAS送信・通知の両方で使用）
+    let menuName = currentRecord.menu_id;
+    try {
+      const { data: menuData } = await supabase
+        .from('menus')
+        .select('label')
+        .eq('id', currentRecord.menu_id)
+        .single();
+      if (menuData?.label) {
+        menuName = menuData.label;
+      } else {
+        // フォールバック（古い静的定義）
+        const fallbackMenus: Record<string, string> = {
+          'personal-20': 'パーソナルトレーニング',
+          'trial-60': '無料体験',
+          'entry-30': '入会手続き',
+          'online-30': 'オンライン',
+          'first-60': '初回パーソナル',
+        };
+        menuName = fallbackMenus[currentRecord.menu_id] || currentRecord.menu_id;
+      }
+    } catch (e) {
+      console.error("メニュー名取得エラー:", e);
+    }
+
     // GASへの同期（手動登録以外、または削除時）
     if (currentRecord.source !== 'google-manual' || type === 'DELETE') {
       try {
         console.log("GAS送信開始:", GAS_WEBHOOK_URL, "ID:", currentRecord.id);
 
         const payloadForGas = JSON.parse(JSON.stringify(body));
+        // GAS側でメニュー名を利用できるようにペイロードに追加
+        if (payloadForGas.record) {
+          payloadForGas.record.menu_name = menuName;
+        }
+        if (payloadForGas.old_record) {
+          payloadForGas.old_record.menu_name = menuName;
+        }
 
         const gasRes = await fetch(GAS_WEBHOOK_URL, {
           method: "POST",
@@ -68,35 +104,6 @@ serve(async (req) => {
       } catch (e) {
         console.error("GAS同期エラー:", e);
       }
-    }
-
-    // 基本情報
-    const dateStr = currentRecord.reservation_date;
-    const timeStr = currentRecord.reservation_time;
-
-    // メニュー名をDBから取得
-    let menuName = currentRecord.menu_id;
-    try {
-      const { data: menuData } = await supabase
-        .from('menus')
-        .select('label')
-        .eq('id', currentRecord.menu_id)
-        .single();
-      if (menuData?.label) {
-        menuName = menuData.label;
-      } else {
-        // フォールバック（古い静的定義）
-        const fallbackMenus: Record<string, string> = {
-          'personal-20': 'パーソナルトレーニング',
-          'trial-60': '無料体験',
-          'entry-30': '入会手続き',
-          'online-30': 'オンライン',
-          'first-60': '初回パーソナル',
-        };
-        menuName = fallbackMenus[currentRecord.menu_id] || currentRecord.menu_id;
-      }
-    } catch (e) {
-      console.error("メニュー名取得エラー:", e);
     }
 
     const userName = currentRecord.name || "不明";

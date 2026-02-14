@@ -35,8 +35,12 @@ serve(async (req) => {
 
     console.log(`送信対象件数: ${reservations?.length || 0}`);
 
+    // メニュー一覧をDBから一括取得
+    const { data: menuList } = await supabase.from('menus').select('id, label');
+    const menuMap = new Map((menuList || []).map(m => [m.id, m.label]));
+
     for (const resv of reservations || []) {
-      const menuName = getMenuName(resv.menu_id);
+      const menuName = menuMap.get(resv.menu_id) || getMenuName(resv.menu_id);
       const message = `【リマインド】\n本日 ${resv.reservation_time} からのご予約がございます。\n\nメニュー: ${menuName}\n\nお気をつけてお越しください。お待ちしております。`;
 
       await sendLineMessage(resv.line_user_id, message);

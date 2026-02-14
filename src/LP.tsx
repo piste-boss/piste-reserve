@@ -19,7 +19,7 @@ interface ReservationData {
     email: string;
 }
 
-const TRIAL_MENU = { id: 'trial-60', label: '無料体験', duration: 60 };
+const TRIAL_MENU_FALLBACK = { id: 'trial-60', label: '無料体験', duration: 60 };
 const LIFF_ID = "2009052718-9rclRq3Z";
 
 const LP: React.FC = () => {
@@ -29,15 +29,34 @@ const LP: React.FC = () => {
     const [isLinking, setIsLinking] = useState(false);
     const [isLinked, setIsLinked] = useState(false);
     const [lastReservationId, setLastReservationId] = useState<string | null>(null);
+    const [trialMenu, setTrialMenu] = useState(TRIAL_MENU_FALLBACK);
 
     const [data, setData] = useState<ReservationData>({
-        menu: TRIAL_MENU.id,
+        menu: '',
         date: '',
         time: '',
         name: '',
         phone: '',
         email: '',
     });
+
+    // DBから無料体験メニューを取得
+    useEffect(() => {
+        const fetchTrialMenu = async () => {
+            const { data: menuData } = await supabase
+                .from('menus')
+                .select('id, label, duration')
+                .eq('label', '無料体験')
+                .single();
+            if (menuData) {
+                setTrialMenu(menuData);
+                setData(prev => ({ ...prev, menu: menuData.id }));
+            } else {
+                setData(prev => ({ ...prev, menu: TRIAL_MENU_FALLBACK.id }));
+            }
+        };
+        fetchTrialMenu();
+    }, []);
 
     useEffect(() => {
         const initLiff = async () => {
@@ -120,7 +139,7 @@ const LP: React.FC = () => {
             const [hours, minutes] = data.time.split(':').map(Number);
             const startDate = new Date();
             startDate.setHours(hours, minutes, 0);
-            const endDate = new Date(startDate.getTime() + TRIAL_MENU.duration * 60000);
+            const endDate = new Date(startDate.getTime() + trialMenu.duration * 60000);
             const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
 
             const reservation = {
@@ -204,7 +223,7 @@ const LP: React.FC = () => {
                         </div>
                         <ReservationTime
                             date={data.date}
-                            duration={TRIAL_MENU.duration}
+                            duration={trialMenu.duration}
                             onSelect={handleTimeSelect}
                             onBack={() => nextStep('DATE')}
                         />
@@ -233,7 +252,7 @@ const LP: React.FC = () => {
                             当日お会いできるのを楽しみにしております。
                         </p>
                         <div className="card" style={{ textAlign: 'left', fontSize: '14px', background: 'var(--piste-gray-light)', border: 'none' }}>
-                            <div style={{ marginBottom: '5px' }}><strong>メニュー:</strong> {TRIAL_MENU.label}</div>
+                            <div style={{ marginBottom: '5px' }}><strong>メニュー:</strong> {trialMenu.label}</div>
                             <div style={{ marginBottom: '5px' }}><strong>日付:</strong> {data.date}</div>
                             <div><strong>時間:</strong> {data.time}</div>
                         </div>

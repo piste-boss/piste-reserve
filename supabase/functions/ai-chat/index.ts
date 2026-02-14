@@ -81,6 +81,14 @@ serve(async (req) => {
         const { message, history, userContext, lineUserId } = await req.json();
         const todayStr = new Date().toISOString().split('T')[0];
 
+        // メニュー情報をDBから動的取得
+        const { data: dbMenus } = await supabase.from('menus').select('id, label, duration').order('created_at');
+        const menuList = dbMenus || [];
+
+        // システムプロンプト用のメニューマッピングを動的構築
+        const menuIdMapping = menuList.map(m => `- **${m.label}** → "${m.id}" (${m.duration}分)`).join('\n');
+        const menuDurationMapping = menuList.map(m => `- "${m.id}": ${m.duration}分`).join('\n');
+
         const userInfoPrompt = userContext ? `
 【現在ログイン中のお客様情報】
 お名前: ${userContext.name || '未設定'}
@@ -102,22 +110,14 @@ ${userInfoPrompt}
 - 既にお客様が入っている時間帯には、絶対に予約を入れないでください。空いている別の時間を提案してください。
 
 【メニューIDの扱い】
-お客様に「メニューID」を尋ねたり、システム上のID名（personal-20など）を伝えたりしないでください。
+お客様に「メニューID」を尋ねたり、システム上のID名を伝えたりしないでください。
 お客様の希望を聞き、以下のルールで自動的にIDを変換して処理してください。
+※パーソナルトレーニングは時間を尋ねる必要はありません。自動的に確定させてください。
 
-- **パーソナルトレーニング / パーソナル** → "personal-20" (※重要：時間を尋ねる必要はありません。自動的に20分コースとして確定させてください)
-- **無料体験** → "trial-60"
-- **初回パーソナル / 初めての利用** → "first-60"
-- **入会手続き** → "entry-30"
-- **オンラインパーソナル** → "online-30"
-- **初回パーソル** → "first-60"
+${menuIdMapping}
 
 【所要時間のルール（重要）】
-- "personal-20": 20分
-- "trial-60": 60分
-- "first-60": 60分
-- "entry-30": 30分
-- "online-30": 30分
+${menuDurationMapping}
 
 全ての予約において、(選択した開始時間 + 所要時間) が、既存の予約の時間帯と1分でも重なってはいけません。
 必ず get_booked_times で既存予約の「開始〜終了」時間を確認し、重複しない時間を案内してください。
@@ -166,14 +166,8 @@ ${userInfoPrompt}
                 console.log("Checking for double booking:", args.date, args.time);
 
                 // バックエンド側での重複最終チェック（所要時間を考慮した重複判定）
-                const menuDurations: Record<string, number> = {
-                    'personal-20': 20,
-                    'trial-60': 60,
-                    'first-60': 60,
-                    'entry-30': 30,
-                    'online-30': 30
-                };
-                const duration = menuDurations[args.menu_id] || 30;
+                const menuDurations = new Map(menuList.map(m => [m.id, m.duration]));
+                const duration = menuDurations.get(args.menu_id) || 30;
 
                 const { data: booked } = await supabase
                     .from('reservations')
