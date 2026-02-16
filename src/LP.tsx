@@ -96,9 +96,9 @@ const LP: React.FC = () => {
             await supabase.from('reservations').update({ line_user_id: lineUserId }).eq('id', lastReservationId);
             setIsLinked(true);
             alert("LINE連携が完了しました！");
-        } catch (err) {
-            console.error(err);
-            alert("連携に失敗しました。");
+        } catch (err: any) {
+            console.error('LINE link error:', err);
+            alert(`連携に失敗しました。\n${err?.message || 'しばらくしてから再度お試しください。'}`);
         } finally {
             setIsLinking(false);
         }
@@ -142,6 +142,16 @@ const LP: React.FC = () => {
             const endDate = new Date(startDate.getTime() + trialMenu.duration * 60000);
             const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
 
+            let lineUserId: string | null = null;
+            if (liff.isLoggedIn()) {
+                try {
+                    const liffProfile = await liff.getProfile();
+                    lineUserId = liffProfile.userId;
+                } catch {
+                    lineUserId = null;
+                }
+            }
+
             const reservation = {
                 name: formData.name,
                 email: formData.email,
@@ -151,8 +161,8 @@ const LP: React.FC = () => {
                 reservation_end_time: endTime,
                 menu_id: data.menu,
                 source: 'web',
-                user_id: null, // メインアプリに合わせて明示的にnullを入れる
-                line_user_id: liff.isLoggedIn() ? (liff.getContext()?.userId || null) : null
+                user_id: null,
+                line_user_id: lineUserId
             };
 
             const { data: inserted, error } = await supabase

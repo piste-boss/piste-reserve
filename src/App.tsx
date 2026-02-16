@@ -215,9 +215,13 @@ const App: React.FC = () => {
         });
         if (error) {
           console.warn("RPC failed, trying direct update:", error);
-          await supabase.from('profiles')
+          const { error: directError } = await supabase.from('profiles')
             .update({ line_user_id: liffLineUserId })
             .eq('id', session.user.id);
+          if (directError) {
+            console.error("Direct profile update also failed:", directError);
+            return;
+          }
         }
         setProfile(prev => prev ? { ...prev, line_user_id: liffLineUserId } : null);
         setIsLinked(true);

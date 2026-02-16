@@ -89,9 +89,9 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
 
             alert('LINE連携が完了しました！');
             fetchData();
-        } catch (err) {
+        } catch (err: any) {
             console.error('LINE link error:', err);
-            alert('連携に失敗しました。');
+            alert(`連携に失敗しました。\n${err?.message || 'しばらくしてから再度お試しください。'}`);
         } finally {
             setIsLiffLoading(false);
         }
