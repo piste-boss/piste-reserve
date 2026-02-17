@@ -121,8 +121,49 @@ serve(async (req) => {
     const userPhone = currentRecord.phone || "不明";
     const userEmail = currentRecord.email || "不明";
 
+    // profiles テーブルからユーザー情報を補完（管理者手動登録時に line_user_id / user_id が無い場合）
+    let lineUserId = currentRecord.line_user_id;
+    let matchedUserId = currentRecord.user_id;
+
+    if (!lineUserId || !matchedUserId) {
+      try {
+        // メールアドレスで profiles を検索
+        if (currentRecord.email) {
+          const { data: profileByEmail } = await supabase
+            .from('profiles')
+            .select('id, line_user_id')
+            .eq('email', currentRecord.email)
+            .single();
+          if (profileByEmail) {
+            if (!lineUserId && profileByEmail.line_user_id) {
+              lineUserId = profileByEmail.line_user_id;
+              console.log("profilesからline_user_idを補完:", lineUserId);
+            }
+            if (!matchedUserId) {
+              matchedUserId = profileByEmail.id;
+              console.log("profilesからuser_idを補完:", matchedUserId);
+            }
+          }
+        }
+      } catch (e) {
+        console.log("profiles検索エラー（無視可）:", e);
+      }
+
+      // user_id が補完できた場合、予約レコードを更新
+      if (matchedUserId && !currentRecord.user_id) {
+        try {
+          await supabase
+            .from('reservations')
+            .update({ user_id: matchedUserId })
+            .eq('id', currentRecord.id);
+          console.log("予約にuser_idを紐付け:", matchedUserId);
+        } catch (e) {
+          console.log("user_id更新エラー（無視可）:", e);
+        }
+      }
+    }
+
     // ユーザーへのLINE通知
-    const lineUserId = currentRecord.line_user_id;
     if (lineUserId && LINE_CHANNEL_ACCESS_TOKEN) {
       let messageText = "";
       if (effectiveType === 'INSERT') {

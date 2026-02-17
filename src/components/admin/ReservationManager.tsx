@@ -67,6 +67,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                         name_kana: p.name_kana || '',
                         phone: p.phone || '',
                         email: p.email || '',
+                        user_id: p.id || '',
                         source: 'profile'
                     });
                     seen.add(identifier);
@@ -167,7 +168,18 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         }
     };
 
+    const findUserIdByEmail = async (email: string): Promise<string | null> => {
+        if (!email) return null;
+        const { data } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', email)
+            .single();
+        return data?.id || null;
+    };
+
     const handleRegister = async () => {
+        const userId = await findUserIdByEmail(editForm.email);
         const { error } = await supabase.from('reservations').insert([{
             reservation_date: editForm.reservation_date,
             reservation_time: editForm.reservation_time,
@@ -176,7 +188,8 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
             phone: editForm.phone,
             email: editForm.email,
             menu_id: editForm.menu_id,
-            source: 'admin'
+            source: 'admin',
+            ...(userId ? { user_id: userId } : {})
         }]);
 
         if (error) alert('登録失敗: ' + error.message);
@@ -244,15 +257,20 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
 
         const finalName = matchedCustomer ? matchedCustomer.name : nameCandidate;
 
+        // メール経由で user_id を検索
+        const customerEmail = matchedCustomer?.email || '';
+        const userId = await findUserIdByEmail(customerEmail);
+
         const newReservations = dateTimes.map(dt => ({
             reservation_date: dt.date,
             reservation_time: dt.time,
             name: finalName,
             name_kana: matchedCustomer?.name_kana || '',
             phone: matchedCustomer?.phone || '',
-            email: matchedCustomer?.email || '',
+            email: customerEmail,
             menu_id: menuId || menus[0]?.id,
-            source: 'admin'
+            source: 'admin',
+            ...(userId ? { user_id: userId } : {})
         }));
 
         setBulkConfirm({
