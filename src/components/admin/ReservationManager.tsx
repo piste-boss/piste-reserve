@@ -169,16 +169,21 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         }
     };
 
-    const findProfileCustomer = (email: string, phone: string) => {
+    const lookupProfile = async (email: string, phone: string): Promise<{ user_id: string; line_user_id: string } | null> => {
         if (!email && !phone) return null;
-        return customers.find(c =>
-            c.source === 'profile' &&
-            ((email && c.email === email) || (phone && c.phone === phone))
-        ) || null;
+        const { data, error } = await supabase.rpc('lookup_profile_for_reservation', {
+            _email: email || null,
+            _phone: phone || null
+        });
+        if (error) {
+            console.warn('lookup_profile_for_reservation error:', error);
+            return null;
+        }
+        return data && data.length > 0 ? data[0] : null;
     };
 
     const handleRegister = async () => {
-        const matched = findProfileCustomer(editForm.email, editForm.phone);
+        const profile = await lookupProfile(editForm.email, editForm.phone);
         const { error } = await supabase.from('reservations').insert([{
             reservation_date: editForm.reservation_date,
             reservation_time: editForm.reservation_time,
@@ -188,8 +193,8 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
             email: editForm.email,
             menu_id: editForm.menu_id,
             source: 'admin',
-            ...(matched?.user_id ? { user_id: matched.user_id } : {}),
-            ...(matched?.line_user_id ? { line_user_id: matched.line_user_id } : {})
+            ...(profile?.user_id ? { user_id: profile.user_id } : {}),
+            ...(profile?.line_user_id ? { line_user_id: profile.line_user_id } : {})
         }]);
 
         if (error) alert('登録失敗: ' + error.message);
@@ -200,7 +205,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         }
     };
 
-    const handleBulkRegister = () => {
+    const handleBulkRegister = async () => {
         if (!bulkText.trim()) return;
 
         const lines = bulkText.split('\n').map(l => l.trim()).filter(l => l);
@@ -257,12 +262,10 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
 
         const finalName = matchedCustomer ? matchedCustomer.name : nameCandidate;
 
-        // customers リストから user_id / line_user_id を取得
+        // RPC でプロファイルから user_id / line_user_id を取得
         const customerEmail = matchedCustomer?.email || '';
         const customerPhone = matchedCustomer?.phone || '';
-        const profileMatch = matchedCustomer?.source === 'profile'
-            ? matchedCustomer
-            : findProfileCustomer(customerEmail, customerPhone);
+        const profile = await lookupProfile(customerEmail, customerPhone);
 
         const newReservations = dateTimes.map(dt => ({
             reservation_date: dt.date,
@@ -273,8 +276,8 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
             email: customerEmail,
             menu_id: menuId || menus[0]?.id,
             source: 'admin',
-            ...(profileMatch?.user_id ? { user_id: profileMatch.user_id } : {}),
-            ...(profileMatch?.line_user_id ? { line_user_id: profileMatch.line_user_id } : {})
+            ...(profile?.user_id ? { user_id: profile.user_id } : {}),
+            ...(profile?.line_user_id ? { line_user_id: profile.line_user_id } : {})
         }));
 
         setBulkConfirm({
