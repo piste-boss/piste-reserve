@@ -149,16 +149,23 @@ serve(async (req) => {
         console.log("profiles検索エラー（無視可）:", e);
       }
 
-      // user_id が補完できた場合、予約レコードを更新
+      // 補完できた情報を予約レコードに書き戻す
+      const updateFields: Record<string, string> = {};
       if (matchedUserId && !currentRecord.user_id) {
+        updateFields.user_id = matchedUserId;
+      }
+      if (lineUserId && !currentRecord.line_user_id) {
+        updateFields.line_user_id = lineUserId;
+      }
+      if (Object.keys(updateFields).length > 0) {
         try {
           await supabase
             .from('reservations')
-            .update({ user_id: matchedUserId })
+            .update(updateFields)
             .eq('id', currentRecord.id);
-          console.log("予約にuser_idを紐付け:", matchedUserId);
+          console.log("予約レコードを補完更新:", updateFields);
         } catch (e) {
-          console.log("user_id更新エラー（無視可）:", e);
+          console.log("予約補完更新エラー（無視可）:", e);
         }
       }
     }

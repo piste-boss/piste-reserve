@@ -168,18 +168,14 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         }
     };
 
-    const findUserIdByEmail = async (email: string): Promise<string | null> => {
+    const findUserIdByEmail = (email: string): string | null => {
         if (!email) return null;
-        const { data } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('email', email)
-            .single();
-        return data?.id || null;
+        const match = customers.find(c => c.source === 'profile' && c.email === email);
+        return match?.user_id || null;
     };
 
     const handleRegister = async () => {
-        const userId = await findUserIdByEmail(editForm.email);
+        const userId = findUserIdByEmail(editForm.email);
         const { error } = await supabase.from('reservations').insert([{
             reservation_date: editForm.reservation_date,
             reservation_time: editForm.reservation_time,
@@ -200,7 +196,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         }
     };
 
-    const handleBulkRegister = async () => {
+    const handleBulkRegister = () => {
         if (!bulkText.trim()) return;
 
         const lines = bulkText.split('\n').map(l => l.trim()).filter(l => l);
@@ -257,9 +253,9 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
 
         const finalName = matchedCustomer ? matchedCustomer.name : nameCandidate;
 
-        // メール経由で user_id を検索
+        // customers リストから user_id を取得
         const customerEmail = matchedCustomer?.email || '';
-        const userId = await findUserIdByEmail(customerEmail);
+        const userId = matchedCustomer?.user_id || findUserIdByEmail(customerEmail);
 
         const newReservations = dateTimes.map(dt => ({
             reservation_date: dt.date,

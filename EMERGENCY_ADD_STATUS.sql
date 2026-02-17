@@ -1,4 +1,4 @@
--- reservationsテーブルにstatusカラムが存在しないため追加するSQL
+1-- reservationsテーブルにstatusカラムが存在しないため追加するSQL
 
 -- 1. statusカラムを追加（デフォルト値を 'active' に設定）
 ALTER TABLE public.reservations 
