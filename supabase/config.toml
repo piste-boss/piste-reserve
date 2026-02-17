@@ -1,3 +1,7 @@
+[functions.handle-reservation]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/handle-reservation/index.ts"
 
 [functions.send-reminders]
 enabled = true
