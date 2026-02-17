@@ -31,6 +31,7 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
                 .from('reservations')
                 .select('*')
                 .eq('user_id', user.id)
+                .neq('status', 'cancelled')
                 .order('reservation_date', { ascending: true });
 
             setReservations(resvData || []);
@@ -123,16 +124,9 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
 
         try {
             setLoading(true);
-            if (cancelReason) {
-                await supabase
-                    .from('reservations')
-                    .update({ cancel_reason: cancelReason })
-                    .eq('id', id);
-            }
-
             const { error } = await supabase
                 .from('reservations')
-                .delete()
+                .update({ status: 'cancelled', cancel_reason: cancelReason || null })
                 .eq('id', id);
 
             if (error) throw error;

@@ -10,6 +10,7 @@
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   name TEXT,
+  name_kana TEXT,
   phone TEXT,
   email TEXT,
   line_user_id TEXT,

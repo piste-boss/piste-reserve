@@ -18,8 +18,11 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // UPDATE時の重複通知・不要通知を防ぐチェック
-    if (type === 'UPDATE') {
+    // 論理削除（status='cancelled'へのUPDATE）をキャンセルとして検出
+    const isCancellation = type === 'UPDATE' && record.status === 'cancelled' && old_record.status !== 'cancelled';
+
+    // UPDATE時の重複通知・不要通知を防ぐチェック（キャンセルは除く）
+    if (type === 'UPDATE' && !isCancellation) {
       const isDateChanged = record.reservation_date !== old_record.reservation_date;
       const isTimeChanged = record.reservation_time !== old_record.reservation_time;
       const isMenuChanged = record.menu_id !== old_record.menu_id;
@@ -30,8 +33,11 @@ serve(async (req) => {
       }
     }
 
-    const currentRecord = type === 'DELETE' ? old_record : record
-    console.log(`予約データ検知 [${type}]:`, currentRecord.id, currentRecord.source)
+    // キャンセル（論理削除）は通知上 DELETE として扱う
+    const effectiveType = isCancellation ? 'DELETE' : type;
+
+    const currentRecord = effectiveType === 'DELETE' ? (old_record || record) : record
+    console.log(`予約データ検知 [${effectiveType}]:`, currentRecord.id, currentRecord.source)
 
     // 基本情報
     const dateStr = currentRecord.reservation_date;
@@ -63,11 +69,16 @@ serve(async (req) => {
     }
 
     // GASへの同期（手動登録以外、または削除時）
-    if (currentRecord.source !== 'google-manual' || type === 'DELETE') {
+    if (currentRecord.source !== 'google-manual' || effectiveType === 'DELETE') {
       try {
         console.log("GAS送信開始:", GAS_WEBHOOK_URL, "ID:", currentRecord.id);
 
         const payloadForGas = JSON.parse(JSON.stringify(body));
+        // キャンセル（論理削除）の場合はGAS側にDELETEとして送信
+        if (isCancellation) {
+          payloadForGas.type = 'DELETE';
+          payloadForGas.old_record = payloadForGas.old_record || payloadForGas.record;
+        }
         // GAS側でメニュー名を利用できるようにペイロードに追加
         if (payloadForGas.record) {
           payloadForGas.record.menu_name = menuName;
@@ -92,7 +103,7 @@ serve(async (req) => {
           console.log("GASレスポンスがJSON形式ではありませんでした");
         }
 
-        if (type === 'INSERT' && gasData?.eventId) {
+        if (effectiveType === 'INSERT' && gasData?.eventId) {
           console.log("eventIdを取得成功。DB更新開始:", gasData.eventId);
           await supabase
             .from('reservations')
@@ -114,11 +125,11 @@ serve(async (req) => {
     const lineUserId = currentRecord.line_user_id;
     if (lineUserId && LINE_CHANNEL_ACCESS_TOKEN) {
       let messageText = "";
-      if (type === 'INSERT') {
+      if (effectiveType === 'INSERT') {
         messageText = `【Piste 予約確定】\nご予約ありがとうございます。\n\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n\n当日お会いできるのを楽しみにしております。`;
-      } else if (type === 'UPDATE') {
+      } else if (effectiveType === 'UPDATE') {
         messageText = `【Piste 予約変更】\n予約内容が変更されました。\n\n新日時: ${dateStr} ${timeStr}〜\n新メニュー: ${menuName}`;
-      } else if (type === 'DELETE') {
+      } else if (effectiveType === 'DELETE') {
         const reasonStr = currentRecord.cancel_reason ? `\n理由: ${currentRecord.cancel_reason}` : "";
         messageText = `【Piste 予約キャンセル】\n予約のキャンセルを承りました。\n\n日時: ${dateStr} ${timeStr}${reasonStr}\n\nまたのご利用をお待ちしております。`;
       }
@@ -134,14 +145,14 @@ serve(async (req) => {
       // 管理者へ
       if (ADMIN_EMAIL) {
         let actionLabel = "";
-        if (type === 'INSERT') actionLabel = "新規予約";
-        else if (type === 'UPDATE') actionLabel = "予約変更";
-        else if (type === 'DELETE') actionLabel = "キャンセル";
+        if (effectiveType === 'INSERT') actionLabel = "新規予約";
+        else if (effectiveType === 'UPDATE') actionLabel = "予約変更";
+        else if (effectiveType === 'DELETE') actionLabel = "キャンセル";
 
         const adminSubject = `【Piste】${actionLabel}通知（${userName} 様）`;
         let adminBody = `${actionLabel}内容:\nお名前: ${userName} 様\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n電話: ${userPhone}\nメール: ${userEmail}`;
 
-        if (type === 'DELETE' && currentRecord.cancel_reason) {
+        if (effectiveType === 'DELETE' && currentRecord.cancel_reason) {
           adminBody += `\nキャンセル理由: ${currentRecord.cancel_reason}`;
         }
 
@@ -153,13 +164,13 @@ serve(async (req) => {
         let userSubject = "";
         let userBody = "";
 
-        if (type === 'INSERT') {
+        if (effectiveType === 'INSERT') {
           userSubject = `【Piste】予約確定のお知らせ`;
           userBody = `${userName} 様\n\nご予約が確定いたしました。\n\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n\n当日お会いできるのを楽しみにしております。${signature}`;
-        } else if (type === 'UPDATE') {
+        } else if (effectiveType === 'UPDATE') {
           userSubject = `【Piste】予約変更のお知らせ`;
           userBody = `${userName} 様\n\n予約内容が変更されました。\n\n新日時: ${dateStr} ${timeStr}〜\n新メニュー: ${menuName}\n\n当日お待ちしております。${signature}`;
-        } else if (type === 'DELETE') {
+        } else if (effectiveType === 'DELETE') {
           const reasonStr = currentRecord.cancel_reason ? `\n理由: ${currentRecord.cancel_reason}` : "";
           userSubject = `【Piste】予約キャンセルのお知らせ`;
           userBody = `${userName} 様\n\n予約のキャンセルを承りました。\n\n日時: ${dateStr} ${timeStr}${reasonStr}\n\nまたのご利用をお待ちしております。${signature}`;

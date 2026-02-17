@@ -34,11 +34,17 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
 
     const fetchReservations = async () => {
         setLoading(true);
-        // Fetch reservations
+        // Fetch active reservations (for calendar display)
         const { data: resvData, error: resvError } = await supabase
             .from('reservations')
             .select('*')
+            .neq('status', 'cancelled')
             .order('reservation_time', { ascending: true });
+
+        // Fetch ALL reservations including cancelled (for customer search)
+        const { data: allResvData } = await supabase
+            .from('reservations')
+            .select('name, name_kana, phone, email, menu_id');
 
         // Fetch profiles (customers)
         const { data: profileData } = await supabase
@@ -67,8 +73,8 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                 }
             });
 
-            // Add from existing reservations (if not already in uniqueCustomers)
-            resvData.forEach(r => {
+            // Add from ALL reservations including cancelled (to preserve customer kana data)
+            (allResvData || []).forEach(r => {
                 const identifier = (r.name || '') + (r.phone || '');
                 if (!seen.has(identifier)) {
                     uniqueCustomers.push({
@@ -134,7 +140,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     const executeDelete = async () => {
         if (!deleteTarget) return;
         setLoading(true);
-        const { error } = await supabase.from('reservations').delete().eq('id', deleteTarget.id);
+        const { error } = await supabase.from('reservations').update({ status: 'cancelled' }).eq('id', deleteTarget.id);
         if (error) alert('削除に失敗しました: ' + error.message);
         else fetchReservations();
         setDeleteTarget(null);

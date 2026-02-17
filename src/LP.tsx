@@ -127,6 +127,7 @@ const LP: React.FC = () => {
                 .eq('reservation_date', data.date)
                 .eq('reservation_time', data.time)
                 .eq('name', formData.name)
+                .neq('status', 'cancelled')
                 .limit(1);
 
             if (existing && existing.length > 0) {

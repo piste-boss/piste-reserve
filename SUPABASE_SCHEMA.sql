@@ -25,3 +25,7 @@ INSERT INTO menus (id, label, duration) VALUES
 
 -- Update Reservations Table
 ALTER TABLE reservations ADD COLUMN IF NOT EXISTS name_kana TEXT;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+
+-- Update Profiles Table
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS name_kana TEXT;

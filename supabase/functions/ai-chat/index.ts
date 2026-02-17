@@ -142,12 +142,12 @@ ${menuDurationMapping}
             const args = call.args;
 
             if (call.name === "get_booked_times") {
-                const { data } = await supabase.from('reservations').select('reservation_time, reservation_end_time').eq('reservation_date', args.date);
+                const { data } = await supabase.from('reservations').select('reservation_time, reservation_end_time').eq('reservation_date', args.date).neq('status', 'cancelled');
                 toolResponseContent = JSON.stringify({ booked_ranges: data?.map(r => `${r.reservation_time.substring(0, 5)}〜${(r.reservation_end_time || r.reservation_time).substring(0, 5)}`) || [] });
             }
             else if (call.name === "find_user_reservations") {
                 console.log("Finding reservations for context:", userContext?.id || "guest");
-                let query = supabase.from('reservations').select('*').gte('reservation_date', todayStr);
+                let query = supabase.from('reservations').select('*').gte('reservation_date', todayStr).neq('status', 'cancelled');
 
                 if (userContext?.id) {
                     // ログイン中の場合は、そのユーザーIDの予約のみに限定（最重要）
@@ -172,7 +172,8 @@ ${menuDurationMapping}
                 const { data: booked } = await supabase
                     .from('reservations')
                     .select('reservation_time, reservation_end_time')
-                    .eq('reservation_date', args.date);
+                    .eq('reservation_date', args.date)
+                    .neq('status', 'cancelled');
 
                 const newStart = args.time;
                 const [nh, nm] = newStart.split(':').map(Number);
@@ -213,19 +214,16 @@ ${menuDurationMapping}
             else if (call.name === "cancel_reservation") {
                 console.log("Canceling reservation with ID:", args.id);
 
-                // 理由があれば先に更新してから削除（Webhookで理由を送るため）
-                if (args.cancel_reason) {
-                    const { error: upError } = await supabase.from('reservations').update({ cancel_reason: args.cancel_reason }).eq('id', args.id);
-                    if (upError) console.error("Cancel reason update error:", upError);
-                }
+                const { error: cancelError } = await supabase
+                    .from('reservations')
+                    .update({ status: 'cancelled', cancel_reason: args.cancel_reason || null })
+                    .eq('id', args.id);
 
-                const { error: delError, status } = await supabase.from('reservations').delete().eq('id', args.id);
-
-                if (delError) {
-                    console.error("Delete error:", delError);
-                    toolResponseContent = JSON.stringify({ error: delError.message });
+                if (cancelError) {
+                    console.error("Cancel error:", cancelError);
+                    toolResponseContent = JSON.stringify({ error: cancelError.message });
                 } else {
-                    console.log("Delete success status:", status);
+                    console.log("Cancel success");
                     toolResponseContent = JSON.stringify({ status: "Success", message: "予約をキャンセルしました。" });
                 }
             }

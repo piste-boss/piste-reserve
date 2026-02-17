@@ -29,6 +29,7 @@ serve(async (req) => {
       .gte('reservation_time', targetTimeMin)
       .lte('reservation_time', targetTimeMax)
       .eq('reminder_sent', false)
+      .neq('status', 'cancelled')
       .not('line_user_id', 'is', null);
 
     if (error) throw error;
