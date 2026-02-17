@@ -79,6 +79,7 @@ serve(async (req) => {
 
     try {
         const { message, history, userContext, lineUserId } = await req.json();
+        console.log("[ai-chat] Received message:", message, "history length:", history?.length || 0);
         const todayStr = new Date().toISOString().split('T')[0];
 
         // メニュー情報をDBから動的取得
@@ -131,8 +132,14 @@ ${menuDurationMapping}
         });
 
         const chat = model.startChat({ history: history || [] });
+        console.log("[ai-chat] Sending to Gemini...");
         let result = await chat.sendMessage(message);
-        let response = await result.response;
+        let response = result.response;
+        console.log("[ai-chat] Gemini response received, candidates:", response.candidates?.length);
+        if (!response.candidates || response.candidates.length === 0) {
+            console.error("[ai-chat] No candidates in response:", JSON.stringify(response));
+            throw new Error("Gemini returned no candidates. Check API key and model availability.");
+        }
         let parts = response.candidates[0].content.parts;
         let calls = parts.filter((p: any) => p.functionCall);
 
@@ -240,8 +247,9 @@ ${menuDurationMapping}
             status: 200,
         });
 
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
+    } catch (error: any) {
+        console.error("[ai-chat] ERROR:", error?.message, error?.stack || error);
+        return new Response(JSON.stringify({ error: error?.message || "Unknown error" }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
         });
