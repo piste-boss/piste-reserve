@@ -1,13 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -70,7 +70,25 @@ const tools = [
             }
         ]
     }
-] as any;
+];
+
+// Gemini REST API を直接呼び出す
+async function callGemini(systemInstruction: string, contents: any[]) {
+    const res = await fetch(GEMINI_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            tools,
+            contents,
+        }),
+    });
+    if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Gemini API error (${res.status}): ${errText}`);
+    }
+    return await res.json();
+}
 
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
@@ -87,8 +105,8 @@ serve(async (req) => {
         const menuList = dbMenus || [];
 
         // システムプロンプト用のメニューマッピングを動的構築
-        const menuIdMapping = menuList.map(m => `- **${m.label}** → "${m.id}" (${m.duration}分)`).join('\n');
-        const menuDurationMapping = menuList.map(m => `- "${m.id}": ${m.duration}分`).join('\n');
+        const menuIdMapping = menuList.map((m: any) => `- **${m.label}** → "${m.id}" (${m.duration}分)`).join('\n');
+        const menuDurationMapping = menuList.map((m: any) => `- "${m.id}": ${m.duration}分`).join('\n');
 
         const userInfoPrompt = userContext ? `
 【現在ログイン中のお客様情報】
@@ -98,10 +116,7 @@ serve(async (req) => {
 ※この情報はすでに把握しています。予約時に再度尋ねる必要はありません。
 ` : '【現在のお客様情報】非ログイン（ゲスト利用）';
 
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
-            tools: tools,
-            systemInstruction: `あなたは「AI予約コンシェルジュ デコピン」です。丁寧で誠実な敬語で予約管理をサポートします。
+        const systemInstruction = `あなたは「AI予約コンシェルジュ デコピン」です。丁寧で誠実な敬語で予約管理をサポートします。
 
 ${userInfoPrompt}
 
@@ -128,39 +143,46 @@ ${menuDurationMapping}
 - 「キャンセルを承りました」と答える前に、必ずツールを実行して成功（Success）を確認してください。
 - 予約を特定するため、まず find_user_reservations で予約IDを取得し、そのIDを cancel_reservation に正確に渡してください。
 
-今日の日付: ${todayStr}`
-        });
+今日の日付: ${todayStr}`;
 
-        const chat = model.startChat({ history: history || [] });
-        console.log("[ai-chat] Sending to Gemini...");
-        let result = await chat.sendMessage(message);
-        let response = result.response;
-        console.log("[ai-chat] Gemini response received, candidates:", response.candidates?.length);
-        if (!response.candidates || response.candidates.length === 0) {
-            console.error("[ai-chat] No candidates in response:", JSON.stringify(response));
-            throw new Error("Gemini returned no candidates. Check API key and model availability.");
+        // 会話履歴を構築
+        const contents = [...(history || [])];
+        contents.push({ role: "user", parts: [{ text: message }] });
+
+        // Gemini呼び出し
+        console.log("[ai-chat] Calling Gemini REST API...");
+        let geminiRes = await callGemini(systemInstruction, contents);
+        console.log("[ai-chat] Gemini response received");
+
+        let candidate = geminiRes.candidates?.[0];
+        if (!candidate) {
+            console.error("[ai-chat] No candidates:", JSON.stringify(geminiRes));
+            throw new Error("Gemini returned no candidates");
         }
-        let parts = response.candidates[0].content.parts;
-        let calls = parts.filter((p: any) => p.functionCall);
 
-        while (calls.length > 0) {
-            const call = calls[0].functionCall;
-            let toolResponseContent = "";
+        // Function Call ループ
+        let modelParts = candidate.content.parts;
+        let functionCalls = modelParts.filter((p: any) => p.functionCall);
+
+        while (functionCalls.length > 0) {
+            // モデルの応答を履歴に追加
+            contents.push({ role: "model", parts: modelParts });
+
+            const call = functionCalls[0].functionCall;
             const args = call.args;
+            let toolResponseContent = "";
 
             if (call.name === "get_booked_times") {
                 const { data } = await supabase.from('reservations').select('reservation_time, reservation_end_time').eq('reservation_date', args.date).neq('status', 'cancelled');
-                toolResponseContent = JSON.stringify({ booked_ranges: data?.map(r => `${r.reservation_time.substring(0, 5)}〜${(r.reservation_end_time || r.reservation_time).substring(0, 5)}`) || [] });
+                toolResponseContent = JSON.stringify({ booked_ranges: data?.map((r: any) => `${r.reservation_time.substring(0, 5)}〜${(r.reservation_end_time || r.reservation_time).substring(0, 5)}`) || [] });
             }
             else if (call.name === "find_user_reservations") {
                 console.log("Finding reservations for context:", userContext?.id || "guest");
                 let query = supabase.from('reservations').select('*').gte('reservation_date', todayStr).neq('status', 'cancelled');
 
                 if (userContext?.id) {
-                    // ログイン中の場合は、そのユーザーIDの予約のみに限定（最重要）
                     query = query.eq('user_id', userContext.id);
                 } else {
-                    // ゲストの場合は名前や電話番号で検索（他人の情報を見せないようAIの指示と併用）
                     if (args.name) query = query.ilike('name', `%${args.name}%`);
                     if (args.phone_last4) query = query.like('phone', `%${args.phone_last4}`);
                     if (args.email) query = query.eq('email', args.email);
@@ -172,8 +194,7 @@ ${menuDurationMapping}
             else if (call.name === "add_reservation") {
                 console.log("Checking for double booking:", args.date, args.time);
 
-                // バックエンド側での重複最終チェック（所要時間を考慮した重複判定）
-                const menuDurations = new Map(menuList.map(m => [m.id, m.duration]));
+                const menuDurations = new Map(menuList.map((m: any) => [m.id, m.duration]));
                 const duration = menuDurations.get(args.menu_id) || 30;
 
                 const { data: booked } = await supabase
@@ -187,10 +208,9 @@ ${menuDurationMapping}
                 const newEndMins = nh * 60 + nm + duration;
                 const newEnd = `${Math.floor(newEndMins / 60).toString().padStart(2, '0')}:${(newEndMins % 60).toString().padStart(2, '0')}`;
 
-                const hasOverlap = booked?.some(r => {
+                const hasOverlap = booked?.some((r: any) => {
                     const exStart = r.reservation_time.substring(0, 5);
                     const exEnd = (r.reservation_end_time || r.reservation_time).substring(0, 5);
-                    // 重複条件: (新規開始 < 既存終了) かつ (新規終了 > 既存開始)
                     return (newStart < exEnd && newEnd > exStart);
                 });
 
@@ -209,7 +229,7 @@ ${menuDurationMapping}
                         phone: args.phone || userContext?.phone,
                         reservation_date: args.date,
                         reservation_time: args.time,
-                        reservation_end_time: newEnd, // 終了時間も計算して保存
+                        reservation_end_time: newEnd,
                         menu_id: args.menu_id,
                         source: 'ai-dekopin',
                         line_user_id: lineUserId
@@ -235,14 +255,27 @@ ${menuDurationMapping}
                 }
             }
 
-            const toolCombinedResult = await chat.sendMessage([{
-                functionResponse: { name: call.name, response: { content: toolResponseContent } }
-            }]);
-            response = await toolCombinedResult.response;
-            calls = response.candidates[0].content.parts.filter((p: any) => p.functionCall);
+            // ツール結果を履歴に追加して再呼び出し
+            contents.push({
+                role: "user",
+                parts: [{ functionResponse: { name: call.name, response: { content: toolResponseContent } } }]
+            });
+
+            geminiRes = await callGemini(systemInstruction, contents);
+            candidate = geminiRes.candidates?.[0];
+            if (!candidate) throw new Error("Gemini returned no candidates after tool call");
+            modelParts = candidate.content.parts;
+            functionCalls = modelParts.filter((p: any) => p.functionCall);
         }
 
-        return new Response(JSON.stringify({ text: response.text(), history: await chat.getHistory() }), {
+        // 最終応答のモデルパートを履歴に追加
+        contents.push({ role: "model", parts: modelParts });
+
+        // テキスト取得
+        const textPart = modelParts.find((p: any) => p.text);
+        const responseText = textPart?.text || "";
+
+        return new Response(JSON.stringify({ text: responseText, history: contents }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
         });
