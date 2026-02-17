@@ -1,5 +1,6 @@
--- 管理者用: user_id / メール / 電話番号 から profiles の user_id, line_user_id を取得する関数
--- SECURITY DEFINER により RLS をバイパスする
+-- 旧シグネチャ(2引数)を削除してから新シグネチャ(3引数)で再作成
+DROP FUNCTION IF EXISTS public.lookup_profile_for_reservation(TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION public.lookup_profile_for_reservation(
   _user_id UUID DEFAULT NULL,
   _email TEXT DEFAULT NULL,
@@ -12,7 +13,6 @@ AS $$
 DECLARE
   normalized_phone TEXT;
 BEGIN
-  -- 管理者チェック
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Not authorized: admin only';
   END IF;

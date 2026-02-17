@@ -173,10 +173,11 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
 
     const normalizePhone = (phone: string) => phone ? phone.replace(/[-\s\u3000]/g, '') : '';
 
-    const lookupProfile = async (email: string, phone: string): Promise<{ user_id: string; line_user_id: string } | null> => {
+    const lookupProfile = async (userId: string, email: string, phone: string): Promise<{ user_id: string; line_user_id: string } | null> => {
         const normalizedPhone = normalizePhone(phone);
-        if (!email && !normalizedPhone) return null;
+        if (!userId && !email && !normalizedPhone) return null;
         const { data, error } = await supabase.rpc('lookup_profile_for_reservation', {
+            _user_id: userId || null,
             _email: email || null,
             _phone: normalizedPhone || null
         });
@@ -192,7 +193,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         let userId = editForm._user_id || null;
         let lineUserId = editForm._line_user_id || null;
         if (!userId || !lineUserId) {
-            const profile = await lookupProfile(editForm.email, editForm.phone);
+            const profile = await lookupProfile(userId || '', editForm.email, editForm.phone);
             if (profile) {
                 userId = userId || profile.user_id;
                 lineUserId = lineUserId || profile.line_user_id;
@@ -277,9 +278,10 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         const finalName = matchedCustomer ? matchedCustomer.name : nameCandidate;
 
         // RPC でプロファイルから user_id / line_user_id を取得
+        const customerUserId = matchedCustomer?.user_id || '';
         const customerEmail = matchedCustomer?.email || '';
         const customerPhone = matchedCustomer?.phone || '';
-        const profile = await lookupProfile(customerEmail, customerPhone);
+        const profile = await lookupProfile(customerUserId, customerEmail, customerPhone);
 
         const newReservations = dateTimes.map(dt => ({
             reservation_date: dt.date,
