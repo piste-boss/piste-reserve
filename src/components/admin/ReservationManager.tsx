@@ -44,7 +44,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         // Fetch ALL reservations including cancelled (for customer search)
         const { data: allResvData } = await supabase
             .from('reservations')
-            .select('name, name_kana, phone, email, menu_id');
+            .select('name, name_kana, phone, email, menu_id, user_id, line_user_id');
 
         // Fetch profiles (customers)
         const { data: profileData } = await supabase
@@ -60,7 +60,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
 
             // Add from profiles
             profileData?.forEach(p => {
-                const identifier = (p.name || '') + (p.phone || '');
+                const identifier = (p.name || '') + (p.phone || '').replace(/[-\s]/g, '');
                 if (!seen.has(identifier)) {
                     uniqueCustomers.push({
                         name: p.name || '',
@@ -77,7 +77,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
 
             // Add from ALL reservations including cancelled (to preserve customer kana data)
             (allResvData || []).forEach(r => {
-                const identifier = (r.name || '') + (r.phone || '');
+                const identifier = (r.name || '') + (r.phone || '').replace(/[-\s]/g, '');
                 if (!seen.has(identifier)) {
                     uniqueCustomers.push({
                         name: r.name || '',
@@ -85,6 +85,8 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                         phone: r.phone || '',
                         email: r.email || '',
                         menu_id: r.menu_id,
+                        user_id: r.user_id || '',
+                        line_user_id: r.line_user_id || '',
                         source: 'resv'
                     });
                     seen.add(identifier);
@@ -169,11 +171,14 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         }
     };
 
+    const normalizePhone = (phone: string) => phone ? phone.replace(/[-\s\u3000]/g, '') : '';
+
     const lookupProfile = async (email: string, phone: string): Promise<{ user_id: string; line_user_id: string } | null> => {
-        if (!email && !phone) return null;
+        const normalizedPhone = normalizePhone(phone);
+        if (!email && !normalizedPhone) return null;
         const { data, error } = await supabase.rpc('lookup_profile_for_reservation', {
             _email: email || null,
-            _phone: phone || null
+            _phone: normalizedPhone || null
         });
         if (error) {
             console.warn('lookup_profile_for_reservation error:', error);
@@ -551,7 +556,13 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                                                     onMouseOver={e => (e.currentTarget.style.backgroundColor = '#f7fafc')}
                                                     onMouseOut={e => (e.currentTarget.style.backgroundColor = 'white')}
                                                 >
-                                                    <div style={{ fontWeight: 'bold' }}>{s.name} ({s.name_kana})</div>
+                                                    <div style={{ fontWeight: 'bold' }}>
+                                                        {s.name} ({s.name_kana})
+                                                        {s.line_user_id && <span style={{ marginLeft: '6px', fontSize: '10px', color: '#25D366', fontWeight: 'normal' }}>LINE</span>}
+                                                        <span style={{ marginLeft: '6px', fontSize: '10px', color: s.source === 'profile' ? '#3182ce' : '#999', fontWeight: 'normal' }}>
+                                                            {s.source === 'profile' ? '会員' : '予約履歴'}
+                                                        </span>
+                                                    </div>
                                                     <div style={{ fontSize: '11px', color: '#666' }}>{s.phone} / {s.email}</div>
                                                 </div>
                                             ))}

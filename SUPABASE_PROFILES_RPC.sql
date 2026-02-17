@@ -166,6 +166,9 @@ RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  _email TEXT;
+  _phone TEXT;
 BEGIN
   IF auth.uid() != _id THEN
     RAISE EXCEPTION 'Not authorized';
@@ -179,10 +182,18 @@ BEGIN
     RAISE EXCEPTION 'Profile not found for user %', _id;
   END IF;
 
-  -- 既存予約のline_user_idもバックフィル（リマインド通知が届くようにする）
+  -- プロファイルからemail/phoneを取得
+  SELECT email, phone INTO _email, _phone FROM public.profiles WHERE id = _id;
+
+  -- 既存予約のline_user_idをバックフィル（user_id一致、またはemail/phone一致）
   UPDATE public.reservations
   SET line_user_id = _line_user_id
-  WHERE user_id = _id AND line_user_id IS NULL;
+  WHERE line_user_id IS NULL
+    AND (
+      user_id = _id
+      OR (_email IS NOT NULL AND _email != '' AND email = _email)
+      OR (_phone IS NOT NULL AND _phone != '' AND regexp_replace(COALESCE(phone, ''), '[-\s\u3000]', '', 'g') = regexp_replace(_phone, '[-\s\u3000]', '', 'g'))
+    );
 END;
 $$;
 

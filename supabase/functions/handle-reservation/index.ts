@@ -121,6 +121,9 @@ serve(async (req) => {
     const userPhone = currentRecord.phone || "不明";
     const userEmail = currentRecord.email || "不明";
 
+    // 電話番号正規化（ハイフン・スペース・全角スペース除去）
+    const normalizePhone = (p: string) => (p || '').replace(/[-\s\u3000]/g, '');
+
     // profiles テーブルからユーザー情報を補完（管理者手動登録時に line_user_id / user_id が無い場合）
     let lineUserId = currentRecord.line_user_id;
     let matchedUserId = currentRecord.user_id;
@@ -139,14 +142,29 @@ serve(async (req) => {
           if (data) profileMatch = data;
         }
 
-        // 2. メールで見つからなければ電話番号で検索
+        // 2. メールで見つからなければ電話番号で検索（正規化して比較）
         if (!profileMatch && currentRecord.phone) {
+          const normalizedPhone = normalizePhone(currentRecord.phone);
+          // まず完全一致で検索
           const { data } = await supabase
             .from('profiles')
-            .select('id, line_user_id')
+            .select('id, line_user_id, phone')
             .eq('phone', currentRecord.phone)
             .single();
-          if (data) profileMatch = data;
+          if (data) {
+            profileMatch = data;
+          } else if (normalizedPhone) {
+            // 完全一致で見つからなければ、電話番号が存在するprofilesを取得して正規化比較
+            const { data: phoneProfiles } = await supabase
+              .from('profiles')
+              .select('id, line_user_id, phone')
+              .not('phone', 'is', null);
+            if (phoneProfiles) {
+              profileMatch = phoneProfiles.find(
+                (p: any) => normalizePhone(p.phone) === normalizedPhone
+              ) || null;
+            }
+          }
         }
 
         if (profileMatch) {
