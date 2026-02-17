@@ -4,9 +4,10 @@ import { supabase } from '../lib/supabase';
 interface Props {
     onBack: () => void;
     userEmail: string;
+    onChangeReservation?: (reservation: any) => void;
 }
 
-const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
+const MyPage: React.FC<Props> = ({ onBack, userEmail, onChangeReservation }) => {
     const [reservations, setReservations] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState<any>(null);
@@ -214,20 +215,38 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
                                     </div>
                                 </div>
                                 {cancelingId !== res.id && (
-                                    <button
-                                        style={{
-                                            padding: '6px 12px',
-                                            fontSize: '12px',
-                                            backgroundColor: '#fff',
-                                            color: '#e53e3e',
-                                            border: '1px solid #feb2b2',
-                                            borderRadius: '6px',
-                                            cursor: 'pointer'
-                                        }}
-                                        onClick={() => setCancelingId(res.id)}
-                                    >
-                                        キャンセル
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        {onChangeReservation && (
+                                            <button
+                                                style={{
+                                                    padding: '6px 12px',
+                                                    fontSize: '12px',
+                                                    backgroundColor: '#fff',
+                                                    color: 'var(--piste-dark-blue)',
+                                                    border: '1px solid #bee3f8',
+                                                    borderRadius: '6px',
+                                                    cursor: 'pointer'
+                                                }}
+                                                onClick={() => onChangeReservation(res)}
+                                            >
+                                                変更
+                                            </button>
+                                        )}
+                                        <button
+                                            style={{
+                                                padding: '6px 12px',
+                                                fontSize: '12px',
+                                                backgroundColor: '#fff',
+                                                color: '#e53e3e',
+                                                border: '1px solid #feb2b2',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer'
+                                            }}
+                                            onClick={() => setCancelingId(res.id)}
+                                        >
+                                            キャンセル
+                                        </button>
+                                    </div>
                                 )}
                             </div>
 

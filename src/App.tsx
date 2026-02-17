@@ -66,6 +66,7 @@ const App: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastReservationId, setLastReservationId] = useState<string | null>(null);
   const [liffLineUserId, setLiffLineUserId] = useState<string | null>(null);
+  const [changingReservationId, setChangingReservationId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -320,6 +321,16 @@ const App: React.FC = () => {
       }
 
       if (inserted && inserted.length > 0) setLastReservationId(inserted[0].id);
+
+      // 予約変更の場合、旧予約をキャンセル
+      if (changingReservationId) {
+        await supabase
+          .from('reservations')
+          .update({ status: 'cancelled', cancel_reason: '予約変更のため' })
+          .eq('id', changingReservationId);
+        setChangingReservationId(null);
+      }
+
       setData({ ...data, ...formData });
       if (profile?.line_user_id || liffLineUserId) setIsLinked(true);
       nextStep('COMPLETE');
@@ -391,7 +402,7 @@ const App: React.FC = () => {
                 <button onClick={() => nextStep('AUTH')} style={{ color: 'var(--piste-green)', border: 'none', background: 'none', fontWeight: 'bold', marginLeft: '5px' }}>ログインへ</button>
               </div>
             )}
-            <h2 style={{ marginBottom: '20px', fontSize: '18px' }}>ご希望のご予約メニューを選択してください</h2>
+            <h2 style={{ marginBottom: '20px', fontSize: '18px' }}>ご希望の予約メニューを選択して下さい</h2>
             <select
               className="card" style={{ width: '100%', padding: '15px', fontSize: '16px' }}
               value={data.menu} onChange={(e) => setData({ ...data, menu: e.target.value })}
@@ -400,6 +411,11 @@ const App: React.FC = () => {
               {menus.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
             <button className="btn-primary" style={{ width: '100%', marginTop: '20px' }} disabled={!data.menu} onClick={() => nextStep('DATE')}>次へ</button>
+            {session && (
+              <p style={{ fontSize: '12px', color: 'var(--piste-text-muted)', textAlign: 'center', marginTop: '15px' }}>
+                ご予約の変更・キャンセルは画面右上のマイページよりお願いします
+              </p>
+            )}
           </div>
         )}
 
@@ -436,6 +452,11 @@ const App: React.FC = () => {
               nextStep('MENU');
             }}
             userEmail={session?.user.email || ''}
+            onChangeReservation={(reservation) => {
+              setChangingReservationId(reservation.id);
+              setData({ ...data, menu: reservation.menu_id });
+              nextStep('DATE');
+            }}
           />
         )}
         {step === 'DATE' && <ReservationCalendar onSelect={(date) => { setData({ ...data, date }); nextStep('TIME'); }} onBack={() => nextStep('MENU')} />}
