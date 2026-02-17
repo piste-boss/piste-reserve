@@ -31,7 +31,7 @@ const MyPage: React.FC<Props> = ({ onBack, userEmail }) => {
                 .from('reservations')
                 .select('*')
                 .eq('user_id', user.id)
-                .neq('status', 'cancelled')
+                .or('status.is.null,status.neq.cancelled')
                 .order('reservation_date', { ascending: true });
 
             setReservations(resvData || []);

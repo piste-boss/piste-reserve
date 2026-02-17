@@ -38,7 +38,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         const { data: resvData, error: resvError } = await supabase
             .from('reservations')
             .select('*')
-            .neq('status', 'cancelled')
+            .or('status.is.null,status.neq.cancelled')
             .order('reservation_time', { ascending: true });
 
         // Fetch ALL reservations including cancelled (for customer search)

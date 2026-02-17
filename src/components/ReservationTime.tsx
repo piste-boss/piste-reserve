@@ -39,7 +39,7 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 3
                     .from('reservations')
                     .select('reservation_time, reservation_end_time')
                     .eq('reservation_date', date)
-                    .neq('status', 'cancelled');
+                    .or('status.is.null,status.neq.cancelled');
 
                 if (error) {
                     console.error("Fetch Error:", error);
@@ -48,7 +48,7 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 3
                         .from('reservations')
                         .select('reservation_time')
                         .eq('reservation_date', date)
-                        .neq('status', 'cancelled');
+                        .or('status.is.null,status.neq.cancelled');
                     if (fallbackData) {
                         setBookedRanges(fallbackData.map(r => ({ start: r.reservation_time.substring(0, 5), end: r.reservation_time.substring(0, 5) })));
                     }
