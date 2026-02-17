@@ -412,8 +412,8 @@ const App: React.FC = () => {
             </select>
             <button className="btn-primary" style={{ width: '100%', marginTop: '20px' }} disabled={!data.menu} onClick={() => nextStep('DATE')}>次へ</button>
             {session && (
-              <p style={{ fontSize: '12px', color: 'var(--piste-text-muted)', textAlign: 'center', marginTop: '15px' }}>
-                ご予約の変更・キャンセルは画面右上のマイページよりお願いします
+              <p style={{ fontSize: '12px', color: '#e53e3e', fontWeight: 'bold', textAlign: 'center', marginTop: '15px' }}>
+                ご予約の変更・キャンセルは<br />画面右上のマイページよりお願いします
               </p>
             )}
           </div>
