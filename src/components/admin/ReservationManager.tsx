@@ -183,7 +183,16 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     };
 
     const handleRegister = async () => {
-        const profile = await lookupProfile(editForm.email, editForm.phone);
+        // 候補選択で直接取得済みならそれを使用、なければ RPC で検索
+        let userId = editForm._user_id || null;
+        let lineUserId = editForm._line_user_id || null;
+        if (!userId || !lineUserId) {
+            const profile = await lookupProfile(editForm.email, editForm.phone);
+            if (profile) {
+                userId = userId || profile.user_id;
+                lineUserId = lineUserId || profile.line_user_id;
+            }
+        }
         const { error } = await supabase.from('reservations').insert([{
             reservation_date: editForm.reservation_date,
             reservation_time: editForm.reservation_time,
@@ -193,8 +202,8 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
             email: editForm.email,
             menu_id: editForm.menu_id,
             source: 'admin',
-            ...(profile?.user_id ? { user_id: profile.user_id } : {}),
-            ...(profile?.line_user_id ? { line_user_id: profile.line_user_id } : {})
+            ...(userId ? { user_id: userId } : {}),
+            ...(lineUserId ? { line_user_id: lineUserId } : {})
         }]);
 
         if (error) alert('登録失敗: ' + error.message);
@@ -527,7 +536,9 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                                                             name_kana: s.name_kana,
                                                             phone: s.phone,
                                                             email: s.email,
-                                                            menu_id: s.menu_id || editForm.menu_id
+                                                            menu_id: s.menu_id || editForm.menu_id,
+                                                            _user_id: s.user_id || '',
+                                                            _line_user_id: s.line_user_id || ''
                                                         });
                                                         setSuggestions([]);
                                                     }}
