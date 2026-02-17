@@ -68,6 +68,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                         phone: p.phone || '',
                         email: p.email || '',
                         user_id: p.id || '',
+                        line_user_id: p.line_user_id || '',
                         source: 'profile'
                     });
                     seen.add(identifier);
@@ -168,14 +169,16 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         }
     };
 
-    const findUserIdByEmail = (email: string): string | null => {
-        if (!email) return null;
-        const match = customers.find(c => c.source === 'profile' && c.email === email);
-        return match?.user_id || null;
+    const findProfileCustomer = (email: string, phone: string) => {
+        if (!email && !phone) return null;
+        return customers.find(c =>
+            c.source === 'profile' &&
+            ((email && c.email === email) || (phone && c.phone === phone))
+        ) || null;
     };
 
     const handleRegister = async () => {
-        const userId = findUserIdByEmail(editForm.email);
+        const matched = findProfileCustomer(editForm.email, editForm.phone);
         const { error } = await supabase.from('reservations').insert([{
             reservation_date: editForm.reservation_date,
             reservation_time: editForm.reservation_time,
@@ -185,7 +188,8 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
             email: editForm.email,
             menu_id: editForm.menu_id,
             source: 'admin',
-            ...(userId ? { user_id: userId } : {})
+            ...(matched?.user_id ? { user_id: matched.user_id } : {}),
+            ...(matched?.line_user_id ? { line_user_id: matched.line_user_id } : {})
         }]);
 
         if (error) alert('登録失敗: ' + error.message);
@@ -253,20 +257,24 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
 
         const finalName = matchedCustomer ? matchedCustomer.name : nameCandidate;
 
-        // customers リストから user_id を取得
+        // customers リストから user_id / line_user_id を取得
         const customerEmail = matchedCustomer?.email || '';
-        const userId = matchedCustomer?.user_id || findUserIdByEmail(customerEmail);
+        const customerPhone = matchedCustomer?.phone || '';
+        const profileMatch = matchedCustomer?.source === 'profile'
+            ? matchedCustomer
+            : findProfileCustomer(customerEmail, customerPhone);
 
         const newReservations = dateTimes.map(dt => ({
             reservation_date: dt.date,
             reservation_time: dt.time,
             name: finalName,
             name_kana: matchedCustomer?.name_kana || '',
-            phone: matchedCustomer?.phone || '',
+            phone: customerPhone,
             email: customerEmail,
             menu_id: menuId || menus[0]?.id,
             source: 'admin',
-            ...(userId ? { user_id: userId } : {})
+            ...(profileMatch?.user_id ? { user_id: profileMatch.user_id } : {}),
+            ...(profileMatch?.line_user_id ? { line_user_id: profileMatch.line_user_id } : {})
         }));
 
         setBulkConfirm({
