@@ -127,22 +127,36 @@ serve(async (req) => {
 
     if (!lineUserId || !matchedUserId) {
       try {
-        // メールアドレスで profiles を検索
+        let profileMatch = null;
+
+        // 1. メールアドレスで profiles を検索
         if (currentRecord.email) {
-          const { data: profileByEmail } = await supabase
+          const { data } = await supabase
             .from('profiles')
             .select('id, line_user_id')
             .eq('email', currentRecord.email)
             .single();
-          if (profileByEmail) {
-            if (!lineUserId && profileByEmail.line_user_id) {
-              lineUserId = profileByEmail.line_user_id;
-              console.log("profilesからline_user_idを補完:", lineUserId);
-            }
-            if (!matchedUserId) {
-              matchedUserId = profileByEmail.id;
-              console.log("profilesからuser_idを補完:", matchedUserId);
-            }
+          if (data) profileMatch = data;
+        }
+
+        // 2. メールで見つからなければ電話番号で検索
+        if (!profileMatch && currentRecord.phone) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('id, line_user_id')
+            .eq('phone', currentRecord.phone)
+            .single();
+          if (data) profileMatch = data;
+        }
+
+        if (profileMatch) {
+          if (!lineUserId && profileMatch.line_user_id) {
+            lineUserId = profileMatch.line_user_id;
+            console.log("profilesからline_user_idを補完:", lineUserId);
+          }
+          if (!matchedUserId) {
+            matchedUserId = profileMatch.id;
+            console.log("profilesからuser_idを補完:", matchedUserId);
           }
         }
       } catch (e) {
