@@ -42,58 +42,75 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
             .order('reservation_time', { ascending: true });
 
         // Fetch ALL reservations including cancelled (for customer search)
-        const { data: allResvData } = await supabase
+        const { data: allResvData, error: allResvError } = await supabase
             .from('reservations')
             .select('name, name_kana, phone, email, menu_id, user_id, line_user_id');
 
-        // Fetch profiles (customers)
-        const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*');
+        // Fetch profiles (customers) - RPC経由でRLSバイパス
+        let profileData: any[] | null = null;
+        const { data: rpcProfileData, error: rpcProfileError } = await supabase
+            .rpc('admin_fetch_all_profiles');
+        if (!rpcProfileError && rpcProfileData) {
+            profileData = rpcProfileData;
+        } else {
+            console.error('admin_fetch_all_profiles RPC error:', rpcProfileError);
+            // Fallback: 直接クエリ（RLSで制限される可能性あり）
+            const { data: directProfileData, error: directProfileError } = await supabase
+                .from('profiles')
+                .select('*');
+            if (directProfileError) {
+                console.error('profiles direct fetch error:', directProfileError);
+            }
+            profileData = directProfileData;
+        }
+        if (allResvError) {
+            console.error('allReservations fetch error:', allResvError);
+        }
 
         if (!resvError && resvData) {
             setReservations(resvData);
-
-            // Collect unique customers from both tables
-            const uniqueCustomers: any[] = [];
-            const seen = new Set();
-
-            // Add from profiles
-            profileData?.forEach(p => {
-                const identifier = (p.name || '') + (p.phone || '').replace(/[-\s]/g, '');
-                if (!seen.has(identifier)) {
-                    uniqueCustomers.push({
-                        name: p.name || '',
-                        name_kana: p.name_kana || '',
-                        phone: p.phone || '',
-                        email: p.email || '',
-                        user_id: p.id || '',
-                        line_user_id: p.line_user_id || '',
-                        source: 'profile'
-                    });
-                    seen.add(identifier);
-                }
-            });
-
-            // Add from ALL reservations including cancelled (to preserve customer kana data)
-            (allResvData || []).forEach(r => {
-                const identifier = (r.name || '') + (r.phone || '').replace(/[-\s]/g, '');
-                if (!seen.has(identifier)) {
-                    uniqueCustomers.push({
-                        name: r.name || '',
-                        name_kana: r.name_kana || '',
-                        phone: r.phone || '',
-                        email: r.email || '',
-                        menu_id: r.menu_id,
-                        user_id: r.user_id || '',
-                        line_user_id: r.line_user_id || '',
-                        source: 'resv'
-                    });
-                    seen.add(identifier);
-                }
-            });
-            setCustomers(uniqueCustomers);
         }
+
+        // Build unique customer list independently from reservation query
+        const uniqueCustomers: any[] = [];
+        const seen = new Set();
+
+        // Add from profiles
+        (profileData || []).forEach(p => {
+            const identifier = (p.name || '') + (p.phone || '').replace(/[-\s]/g, '');
+            if (identifier && !seen.has(identifier)) {
+                uniqueCustomers.push({
+                    name: p.name || '',
+                    name_kana: p.name_kana || '',
+                    phone: p.phone || '',
+                    email: p.email || '',
+                    user_id: p.id || '',
+                    line_user_id: p.line_user_id || '',
+                    source: 'profile'
+                });
+                seen.add(identifier);
+            }
+        });
+
+        // Add from ALL reservations including cancelled (to preserve customer kana data)
+        (allResvData || []).forEach(r => {
+            const identifier = (r.name || '') + (r.phone || '').replace(/[-\s]/g, '');
+            if (identifier && !seen.has(identifier)) {
+                uniqueCustomers.push({
+                    name: r.name || '',
+                    name_kana: r.name_kana || '',
+                    phone: r.phone || '',
+                    email: r.email || '',
+                    menu_id: r.menu_id,
+                    user_id: r.user_id || '',
+                    line_user_id: r.line_user_id || '',
+                    source: 'resv'
+                });
+                seen.add(identifier);
+            }
+        });
+        setCustomers(uniqueCustomers);
+
         setLoading(false);
     };
 
