@@ -18,6 +18,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     const [deleteTarget, setDeleteTarget] = useState<any>(null);
     const [customers, setCustomers] = useState<any[]>([]);
     const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [suggestionIndex, setSuggestionIndex] = useState(-1);
     const [isBulkEditing, setIsBulkEditing] = useState(false);
     const [bulkText, setBulkText] = useState('');
     const [bulkConfirm, setBulkConfirm] = useState<{ name: string, count: number, reservations: any[] } | null>(null);
@@ -117,6 +118,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     const handleSearch = (val: string) => {
         if (!val) {
             setSuggestions([]);
+            setSuggestionIndex(-1);
             return;
         }
         const filtered = customers.filter(c =>
@@ -124,6 +126,41 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
             (c.name || '').includes(val)
         ).slice(0, 5);
         setSuggestions(filtered);
+        setSuggestionIndex(-1);
+    };
+
+    const selectSuggestion = (s: any) => {
+        setEditForm({
+            ...editForm,
+            name: s.name,
+            name_kana: s.name_kana,
+            phone: s.phone,
+            email: s.email,
+            menu_id: s.menu_id || editForm.menu_id,
+            _user_id: s.user_id || '',
+            _line_user_id: s.line_user_id || ''
+        });
+        setSuggestions([]);
+        setSuggestionIndex(-1);
+    };
+
+    const handleSuggestionKeyDown = (e: React.KeyboardEvent) => {
+        if (suggestions.length === 0) return;
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSuggestionIndex(prev => prev < suggestions.length - 1 ? prev + 1 : 0);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSuggestionIndex(prev => prev > 0 ? prev - 1 : suggestions.length - 1);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (suggestionIndex >= 0 && suggestionIndex < suggestions.length) {
+                selectSuggestion(suggestions[suggestionIndex]);
+            }
+        } else if (e.key === 'Escape') {
+            setSuggestions([]);
+            setSuggestionIndex(-1);
+        }
     };
 
     useEffect(() => {
@@ -534,6 +571,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                                             setEditForm({ ...editForm, name_kana: val });
                                             handleSearch(val);
                                         }}
+                                        onKeyDown={handleSuggestionKeyDown}
                                         style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ddd' }}
                                         placeholder="例：ヤマダ タロウ"
                                     />
@@ -553,27 +591,15 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                                             {suggestions.map((s, idx) => (
                                                 <div
                                                     key={idx}
-                                                    onClick={() => {
-                                                        setEditForm({
-                                                            ...editForm,
-                                                            name: s.name,
-                                                            name_kana: s.name_kana,
-                                                            phone: s.phone,
-                                                            email: s.email,
-                                                            menu_id: s.menu_id || editForm.menu_id,
-                                                            _user_id: s.user_id || '',
-                                                            _line_user_id: s.line_user_id || ''
-                                                        });
-                                                        setSuggestions([]);
-                                                    }}
+                                                    onClick={() => selectSuggestion(s)}
+                                                    onMouseEnter={() => setSuggestionIndex(idx)}
                                                     style={{
                                                         padding: '10px',
                                                         borderBottom: idx === suggestions.length - 1 ? 'none' : '1px solid #eee',
                                                         cursor: 'pointer',
-                                                        fontSize: '13px'
+                                                        fontSize: '13px',
+                                                        backgroundColor: idx === suggestionIndex ? '#edf2f7' : 'white'
                                                     }}
-                                                    onMouseOver={e => (e.currentTarget.style.backgroundColor = '#f7fafc')}
-                                                    onMouseOut={e => (e.currentTarget.style.backgroundColor = 'white')}
                                                 >
                                                     <div style={{ fontWeight: 'bold' }}>
                                                         {s.name} ({s.name_kana})
