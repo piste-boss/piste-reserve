@@ -79,7 +79,7 @@ const ReservationTimeSlot: React.FC<Props> = ({ date, duration, onSelect, onBack
 
             if (isToday && slotMinutes < currentMinutes) return false;
 
-            const slotEndMins = slotMinutes + (duration || 30);
+            const slotEndMins = slotMinutes + (duration || 20);
             const slotEnd = `${Math.floor(slotEndMins / 60).toString().padStart(2, '0')}:${(slotEndMins % 60).toString().padStart(2, '0')}`;
 
             const isBooked = bookedRanges.some(range => {

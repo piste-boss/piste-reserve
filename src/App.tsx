@@ -296,7 +296,7 @@ const App: React.FC = () => {
       }
 
       const selectedMenu = menus.find(m => m.id === data.menu);
-      const duration = selectedMenu?.duration || 30;
+      const duration = selectedMenu?.duration || 20;
 
       const [hours, minutes] = data.time.split(':').map(Number);
       const startDate = new Date();
@@ -465,7 +465,7 @@ const App: React.FC = () => {
         {step === 'TIME_SLOT' && (
           <ReservationTimeSlot
             date={data.date}
-            duration={menus.find(m => m.id === data.menu)?.duration || 30}
+            duration={menus.find(m => m.id === data.menu)?.duration || 20}
             onSelect={(slotStartHour) => { setData({ ...data, timeSlot: slotStartHour }); nextStep('TIME'); }}
             onBack={() => nextStep('DATE')}
           />
@@ -473,7 +473,7 @@ const App: React.FC = () => {
         {step === 'TIME' && (
           <ReservationTime
             date={data.date}
-            duration={menus.find(m => m.id === data.menu)?.duration || 30}
+            duration={menus.find(m => m.id === data.menu)?.duration || 20}
             timeSlot={data.timeSlot}
             onSelect={(time) => { setData({ ...data, time }); nextStep('FORM'); }}
             onBack={() => nextStep('TIME_SLOT')}

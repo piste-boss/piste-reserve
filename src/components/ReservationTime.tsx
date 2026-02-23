@@ -22,7 +22,7 @@ const generateTimesForSlot = (slotStartHour: string) => {
     return times;
 };
 
-const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 30, timeSlot }) => {
+const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 20, timeSlot }) => {
     const [bookedRanges, setBookedRanges] = useState<{ start: string, end: string }[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -75,7 +75,7 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 3
 
         if (isToday && slotMinutes < currentMinutes) return false;
 
-        const slotEndMins = slotMinutes + (duration || 30);
+        const slotEndMins = slotMinutes + (duration || 20);
         const slotEnd = `${Math.floor(slotEndMins / 60).toString().padStart(2, '0')}:${(slotEndMins % 60).toString().padStart(2, '0')}`;
 
         const isBooked = bookedRanges.some(range => {
