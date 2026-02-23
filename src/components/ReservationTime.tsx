@@ -6,13 +6,13 @@ interface Props {
     onSelect: (time: string) => void;
     onBack: () => void;
     duration?: number;
-    timeSlot: string; // "09" 形式の開始時 hour
+    timeSlot: string; // "09:10" 形式の開始時刻
 }
 
-const generateTimesForSlot = (slotStartHour: string) => {
-    const startH = parseInt(slotStartHour, 10);
-    const startMins = startH * 60;
-    const endMins = startMins + 60;
+const generateTimesForSlot = (slotStart: string) => {
+    const [sh, sm] = slotStart.split(':').map(Number);
+    const startMins = sh * 60 + sm;
+    const endMins = (sh + 1) * 60; // 次の時の00分まで
     const times = [];
     for (let mins = startMins; mins < endMins; mins += 20) {
         const h = Math.floor(mins / 60);
@@ -66,8 +66,8 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 2
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     const times = generateTimesForSlot(timeSlot);
-    const startH = parseInt(timeSlot, 10);
-    const slotLabel = `${startH}:00〜${startH + 1}:00`;
+    const [slotH, slotM] = timeSlot.split(':').map(Number);
+    const slotLabel = `${slotH}:${slotM.toString().padStart(2, '0')}〜${slotH + 1}:00`;
 
     const availableTimes = times.filter(t => {
         const [h, m] = t.split(':').map(Number);

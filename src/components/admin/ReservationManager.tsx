@@ -196,9 +196,17 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
                 lineUserId = lineUserId || profile.line_user_id;
             }
         }
+        // reservation_end_time を計算
+        const selectedMenu = menus.find(m => m.id === editForm.menu_id);
+        const duration = selectedMenu?.duration || 20;
+        const [rh, rm] = editForm.reservation_time.split(':').map(Number);
+        const endMins = rh * 60 + rm + duration;
+        const reservationEndTime = `${Math.floor(endMins / 60).toString().padStart(2, '0')}:${(endMins % 60).toString().padStart(2, '0')}`;
+
         const { error } = await supabase.from('reservations').insert([{
             reservation_date: editForm.reservation_date,
             reservation_time: editForm.reservation_time,
+            reservation_end_time: reservationEndTime,
             name: editForm.name,
             name_kana: editForm.name_kana,
             phone: editForm.phone,
@@ -280,18 +288,28 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         const customerPhone = matchedCustomer?.phone || '';
         const profile = await lookupProfile(customerUserId, customerEmail, customerPhone);
 
-        const newReservations = dateTimes.map(dt => ({
-            reservation_date: dt.date,
-            reservation_time: dt.time,
-            name: finalName,
-            name_kana: matchedCustomer?.name_kana || '',
-            phone: customerPhone,
-            email: customerEmail,
-            menu_id: menuId || menus[0]?.id,
-            source: 'admin',
-            ...(profile?.user_id ? { user_id: profile.user_id } : {}),
-            ...(profile?.line_user_id ? { line_user_id: profile.line_user_id } : {})
-        }));
+        const bulkMenuId = menuId || menus[0]?.id;
+        const bulkMenu = menus.find(m => m.id === bulkMenuId);
+        const bulkDuration = bulkMenu?.duration || 20;
+
+        const newReservations = dateTimes.map(dt => {
+            const [th, tm] = dt.time.split(':').map(Number);
+            const endM = th * 60 + tm + bulkDuration;
+            const endTime = `${Math.floor(endM / 60).toString().padStart(2, '0')}:${(endM % 60).toString().padStart(2, '0')}`;
+            return {
+                reservation_date: dt.date,
+                reservation_time: dt.time,
+                reservation_end_time: endTime,
+                name: finalName,
+                name_kana: matchedCustomer?.name_kana || '',
+                phone: customerPhone,
+                email: customerEmail,
+                menu_id: bulkMenuId,
+                source: 'admin',
+                ...(profile?.user_id ? { user_id: profile.user_id } : {}),
+                ...(profile?.line_user_id ? { line_user_id: profile.line_user_id } : {})
+            };
+        });
 
         setBulkConfirm({
             name: finalName,

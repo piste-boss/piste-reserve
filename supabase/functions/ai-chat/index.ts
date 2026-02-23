@@ -195,7 +195,7 @@ ${menuDurationMapping}
                 console.log("Checking for double booking:", args.date, args.time);
 
                 const menuDurations = new Map(menuList.map((m: any) => [m.id, m.duration]));
-                const duration = menuDurations.get(args.menu_id) || 30;
+                const duration = menuDurations.get(args.menu_id) || 20;
 
                 const { data: booked } = await supabase
                     .from('reservations')

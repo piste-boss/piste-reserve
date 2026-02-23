@@ -9,17 +9,17 @@ interface Props {
 }
 
 const TIME_SLOTS = [
-    { start: 9, label: '9:00 〜 10:00' },
-    { start: 10, label: '10:00 〜 11:00' },
-    { start: 11, label: '11:00 〜 12:00' },
-    { start: 12, label: '12:00 〜 13:00' },
-    { start: 13, label: '13:00 〜 14:00' },
-    { start: 14, label: '14:00 〜 15:00' },
-    { start: 15, label: '15:00 〜 16:00' },
-    { start: 16, label: '16:00 〜 17:00' },
-    { start: 17, label: '17:00 〜 18:00' },
-    { start: 18, label: '18:00 〜 19:00' },
-    { start: 19, label: '19:00 〜 20:00' },
+    { startMins: 9 * 60 + 10, endMins: 10 * 60, label: '9:10 〜 10:00' },
+    { startMins: 10 * 60 + 10, endMins: 11 * 60, label: '10:10 〜 11:00' },
+    { startMins: 11 * 60 + 10, endMins: 12 * 60, label: '11:10 〜 12:00' },
+    { startMins: 12 * 60 + 10, endMins: 13 * 60, label: '12:10 〜 13:00' },
+    { startMins: 13 * 60 + 10, endMins: 14 * 60, label: '13:10 〜 14:00' },
+    { startMins: 14 * 60 + 10, endMins: 15 * 60, label: '14:10 〜 15:00' },
+    { startMins: 15 * 60 + 10, endMins: 16 * 60, label: '15:10 〜 16:00' },
+    { startMins: 16 * 60 + 10, endMins: 17 * 60, label: '16:10 〜 17:00' },
+    { startMins: 17 * 60 + 10, endMins: 18 * 60, label: '17:10 〜 18:00' },
+    { startMins: 18 * 60 + 10, endMins: 19 * 60, label: '18:10 〜 19:00' },
+    { startMins: 19 * 60 + 10, endMins: 20 * 60, label: '19:10 〜 20:00' },
 ];
 
 const ReservationTimeSlot: React.FC<Props> = ({ date, duration, onSelect, onBack }) => {
@@ -64,10 +64,9 @@ const ReservationTimeSlot: React.FC<Props> = ({ date, duration, onSelect, onBack
     const isToday = date === now.toLocaleDateString('sv-SE');
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    const isSlotFull = (startHour: number): boolean => {
+    const isSlotFull = (startMins: number, endMins: number): boolean => {
         const slotTimes: string[] = [];
-        const startMins = startHour * 60;
-        for (let mins = startMins; mins < startMins + 60; mins += 20) {
+        for (let mins = startMins; mins < endMins; mins += 20) {
             const h = Math.floor(mins / 60);
             const m = mins % 60;
             slotTimes.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
@@ -105,12 +104,13 @@ const ReservationTimeSlot: React.FC<Props> = ({ date, duration, onSelect, onBack
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
                     {TIME_SLOTS.map(slot => {
-                        const isFull = isSlotFull(slot.start);
-                        const isPastSlot = isToday && (slot.start + 1) * 60 <= currentMinutes;
+                        const isFull = isSlotFull(slot.startMins, slot.endMins);
+                        const isPastSlot = isToday && slot.endMins <= currentMinutes;
+                        const slotKey = `${Math.floor(slot.startMins / 60).toString().padStart(2, '0')}:${(slot.startMins % 60).toString().padStart(2, '0')}`;
 
                         return (
                             <button
-                                key={slot.start}
+                                key={slotKey}
                                 className="card"
                                 disabled={isFull || isPastSlot}
                                 style={{
@@ -124,7 +124,7 @@ const ReservationTimeSlot: React.FC<Props> = ({ date, duration, onSelect, onBack
                                     backgroundColor: (isFull || isPastSlot) ? '#f3f4f6' : 'white',
                                     cursor: (isFull || isPastSlot) ? 'not-allowed' : 'pointer',
                                 }}
-                                onClick={() => !(isFull || isPastSlot) && onSelect(slot.start.toString().padStart(2, '0'))}
+                                onClick={() => !(isFull || isPastSlot) && onSelect(slotKey)}
                             >
                                 {slot.label}
                                 {isFull && !isPastSlot && (
