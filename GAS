@@ -1,0 +1,230 @@
+/* ==========================================
+   ピステ予約システム：GAS最終完全版（2026/02/07 修正版）
+   ・削除連携の強化
+   ・カレンダー書き戻り防止
+   ・高速化対応
+   ========================================== */
+
+const SUPABASE_URL = "https://ppmupxfwmfsxxaxcohxp.supabase.co";
+// 前と同じシークレットキー
+const SUPABASE_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwbXVweGZ3bWZzeHhheGNvaHhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDEwNzU1MywiZXhwIjoyMDg1NjgzNTUzfQ.tDQqhUlF7v--Q3Swli-AH2ht4nesnQ6isGcs4GjjAvw";
+
+// 専用カレンダーID
+const RESERVA_CALENDAR_ID = "143b0e2167d04f380498027dd740c443b795438ebf62f5a8293ae98e6461f4cf@group.calendar.google.com";
+
+// --- メニュー名変換 ---
+function getMenuName(menuId) {
+  const menus = {
+    'personal-20': 'パーソナル', 
+    'trial-60': '無料体験', 
+    'entry-30': '入会手続き', 
+    'online-30': 'オンライン', 
+    'first-60': '初回パーソナル'
+  };
+  return menus[menuId] || 'パーソナルトレーニング';
+}
+
+// --- Webhook受付 (重要な修正箇所: IDによる確実な特定) ---
+function doPost(e) {
+  try {
+    const contents = e.postData.contents;
+    const body = JSON.parse(contents);
+    
+    // データの整理
+    const type = (body.type || "insert").toLowerCase();
+    let payload = body.record || body;
+    if (type === 'delete' && body.old_record) payload = body.old_record;
+
+    if (!payload || !payload.id) throw new Error("Invalid payload ID");
+
+    const calendar = CalendarApp.getCalendarById(RESERVA_CALENDAR_ID);
+    if (!calendar) throw new Error("Calendar not found");
+
+    // ■ 既存イベントの特定ロジック（改良版）
+    let existingEvent = null;
+
+    // 1. まず google_event_id があればそれで直接特定を試みる（最も確実）
+    if (payload.google_event_id) {
+      if (payload.google_event_id.includes("@")) {
+         try {
+           existingEvent = calendar.getEventById(payload.google_event_id);
+         } catch(e) {
+           console.log("ID lookup failed: " + e);
+         }
+      }
+    }
+
+    // 2. なければ、日付と詳細文から検索（フォールバック）
+    if (!existingEvent) {
+      const targetDate = new Date(payload.reservation_date.toString().replace(/-/g, "/"));
+      const searchStart = new Date(targetDate.getTime() - 86400000); // 1日前
+      const searchEnd = new Date(targetDate.getTime() + 86400000);   // 1日後
+      const events = calendar.getEvents(searchStart, searchEnd);
+      for (const ev of events) {
+        if ((ev.getDescription() || "").includes(`[id:${payload.id}]`)) {
+          existingEvent = ev;
+          break;
+        }
+      }
+    }
+
+    // ■ 操作の分岐
+    
+    // A. 削除リクエスト
+    if (type === 'delete' || payload.status === 'canceled') {
+      if (existingEvent) {
+        existingEvent.deleteEvent();
+        return ContentService.createTextOutput(JSON.stringify({ status: "success", action: "deleted" })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "already deleted or not found" })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    // B. 更新・新規作成リクエスト
+    if (existingEvent) {
+      // ■ 書き戻り防止: 日時がすでに合っているなら何もしない
+      const currentStart = Utilities.formatDate(existingEvent.getStartTime(), "JST", "yyyy-MM-dd HH:mm");
+      const RequestTime = (payload.reservation_time || "00:00").substring(0, 5);
+      const newStart = `${payload.reservation_date} ${RequestTime}`;
+
+      if (currentStart === newStart) {
+        // スキップ
+        return ContentService.createTextOutput(JSON.stringify({ status: "success", eventId: existingEvent.getId(), skipped: true })).setMimeType(ContentService.MimeType.JSON);
+      }
+      // 不一致なら削除して作り直しへ
+      existingEvent.deleteEvent();
+    }
+
+    // C. 新規作成（または作り直し）
+    let eventId = null;
+    const RequestTime = (payload.reservation_time || "00:00").substring(0, 5);
+    const start = new Date(payload.reservation_date.toString().replace(/-/g, "/") + " " + RequestTime);
+    
+    let end;
+    if (payload.reservation_end_time) {
+      const endTime = payload.reservation_end_time.substring(0, 5);
+      end = new Date(payload.reservation_date.toString().replace(/-/g, "/") + " " + endTime);
+    } else {
+      end = new Date(start.getTime() + 20 * 60 * 1000);
+    }
+    
+    const event = calendar.createEvent(`${payload.name}様`, start, end, { 
+      description: `メニュー: ${getMenuName(payload.menu_id)}\n[id:${payload.id}]\n電話: ${payload.phone || ""}` 
+    });
+    eventId = event.getId();
+
+    // DBにIDを書き戻す
+    try {
+      updateSupabaseRecord("reservations", payload.id, {
+        google_event_id: eventId
+      });
+    } catch (e) {}
+
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", eventId: eventId })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) { 
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// --- 高速化した双方向同期（変更なし） ---
+function syncCalendarToSupabase() {
+  console.log("同期開始");
+  try {
+    const now = new Date();
+    const start = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); 
+    const end = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+    const calendar = CalendarApp.getCalendarById(RESERVA_CALENDAR_ID);
+    if (!calendar) return;
+
+    // DBデータ取得
+    const headers = { "apikey": SUPABASE_SERVICE_ROLE_KEY, "Authorization": "Bearer " + SUPABASE_SERVICE_ROLE_KEY };
+    const url = `${SUPABASE_URL}/rest/v1/reservations?reservation_date=gte.${Utilities.formatDate(start, "JST", "yyyy-MM-dd")}&select=id,google_event_id,reservation_time,reservation_end_time`;
+    const res = UrlFetchApp.fetch(url, { headers: headers, muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) return;
+
+    const dbData = JSON.parse(res.getContentText());
+    const dbMap = {}; 
+    dbData.forEach(r => { if(r.google_event_id) dbMap[r.google_event_id] = r; });
+    
+    const liveIds = new Set();
+    const events = calendar.getEvents(start, end);
+
+    // 一括処理用リスト
+    const toInsert = [];
+    const toDeleteIds = [];
+
+    events.forEach(event => {
+      if (event.isAllDayEvent()) return;
+      const eid = event.getId(); 
+      liveIds.add(eid);
+      
+      const dStr = Utilities.formatDate(event.getStartTime(), "JST", "yyyy-MM-dd");
+      const tStr = Utilities.formatDate(event.getStartTime(), "JST", "HH:mm");
+      const etStr = Utilities.formatDate(event.getEndTime(), "JST", "HH:mm");
+
+      if (dbMap[eid]) {
+        // 変更検知
+        if (dbMap[eid].reservation_time.substring(0,5) !== tStr || 
+            (dbMap[eid].reservation_end_time && dbMap[eid].reservation_end_time.substring(0,5) !== etStr)) {
+          updateSupabaseRecord("reservations", dbMap[eid].id, { reservation_date: dStr, reservation_time: tStr, reservation_end_time: etStr });
+        }
+      } else if (!(event.getDescription() || "").includes("[id:")) {
+        // 新規イベント（詳細欄にIDがない＝手動作成）をリストに追加
+        toInsert.push({ 
+          name: `（予定：${event.getTitle()}）`, 
+          email: "system@piste.com", 
+          phone: "000", 
+          reservation_date: dStr, 
+          reservation_time: tStr, 
+          reservation_end_time: etStr, 
+          menu_id: "personal-20", 
+          source: "google-manual", 
+          google_event_id: eid 
+        });
+      }
+    });
+
+    // DBにあってカレンダーにないものを削除リストへ
+    dbData.forEach(row => { 
+      if (row.google_event_id && !liveIds.has(row.google_event_id)) {
+        toDeleteIds.push(row.google_event_id);
+      }
+    });
+
+    // 一括実行
+    if (toInsert.length > 0) {
+      console.log(`一括追加: ${toInsert.length}件`);
+      postDB_Bulk(toInsert);
+    }
+    if (toDeleteIds.length > 0) {
+      console.log(`一括削除: ${toDeleteIds.length}件`);
+      deleteDB_Bulk(toDeleteIds);
+    }
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// --- 通信ヘルパー ---
+function getHeaders() {
+  return { "apikey": SUPABASE_SERVICE_ROLE_KEY, "Authorization": "Bearer " + SUPABASE_SERVICE_ROLE_KEY, "Content-Type": "application/json" };
+}
+
+function updateSupabaseRecord(table, id, data) { 
+  UrlFetchApp.fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, { method: "PATCH", headers: getHeaders(), payload: JSON.stringify(data), muteHttpExceptions: true }); 
+}
+
+function postDB_Bulk(data) {
+  UrlFetchApp.fetch(`${SUPABASE_URL}/rest/v1/reservations`, { method: "POST", headers: getHeaders(), payload: JSON.stringify(data), muteHttpExceptions: true });
+}
+
+function deleteDB_Bulk(ids) {
+  const chunkSize = 20;
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    const valString = chunk.map(id => `"${id}"`).join(',');
+    const url = `${SUPABASE_URL}/rest/v1/reservations?google_event_id=in.(${encodeURIComponent(valString)})`;
+    UrlFetchApp.fetch(url, { method: "DELETE", headers: getHeaders(), muteHttpExceptions: true });
+  }
+}
