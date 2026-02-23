@@ -149,9 +149,17 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     };
 
     const handleSaveReservation = async () => {
+        // reservation_end_time を再計算
+        const selectedMenu = menus.find(m => m.id === editForm.menu_id);
+        const duration = selectedMenu?.duration || 20;
+        const [rh, rm] = editForm.reservation_time.split(':').map(Number);
+        const endMins = rh * 60 + rm + duration;
+        const reservationEndTime = `${Math.floor(endMins / 60).toString().padStart(2, '0')}:${(endMins % 60).toString().padStart(2, '0')}`;
+
         const { error } = await supabase.from('reservations').update({
             reservation_date: editForm.reservation_date,
             reservation_time: editForm.reservation_time,
+            reservation_end_time: reservationEndTime,
             name: editForm.name,
             name_kana: editForm.name_kana,
             phone: editForm.phone,
