@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReservationCalendar from './components/ReservationCalendar';
 import ReservationTime from './components/ReservationTime';
+import ReservationTimeSlot from './components/ReservationTimeSlot';
 import ReservationForm from './components/ReservationForm';
 import { supabase } from './lib/supabase';
 import logo from './assets/logo.png';
@@ -8,11 +9,12 @@ import AIChat from './components/AIChat';
 
 import liff from '@line/liff';
 
-type Step = 'DATE' | 'TIME' | 'FORM' | 'COMPLETE';
+type Step = 'DATE' | 'TIME_SLOT' | 'TIME' | 'FORM' | 'COMPLETE';
 
 interface ReservationData {
     menu: string;
     date: string;
+    timeSlot: string;
     time: string;
     name: string;
     phone: string;
@@ -34,6 +36,7 @@ const LP: React.FC = () => {
     const [data, setData] = useState<ReservationData>({
         menu: '',
         date: '',
+        timeSlot: '',
         time: '',
         name: '',
         phone: '',
@@ -107,7 +110,12 @@ const LP: React.FC = () => {
     const nextStep = (next: Step) => setStep(next);
 
     const handleDateSelect = (date: string) => {
-        setData({ ...data, date });
+        setData({ ...data, date, timeSlot: '' });
+        nextStep('TIME_SLOT');
+    };
+
+    const handleTimeSlotSelect = (slotStartHour: string) => {
+        setData({ ...data, timeSlot: slotStartHour });
         nextStep('TIME');
     };
 
@@ -226,19 +234,23 @@ const LP: React.FC = () => {
                     </>
                 )}
 
+                {step === 'TIME_SLOT' && (
+                    <ReservationTimeSlot
+                        date={data.date}
+                        duration={trialMenu.duration}
+                        onSelect={handleTimeSlotSelect}
+                        onBack={() => nextStep('DATE')}
+                    />
+                )}
+
                 {step === 'TIME' && (
-                    <>
-                        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                            <h2 style={{ fontSize: '18px', fontWeight: '700' }}>時間を選択</h2>
-                            <p style={{ color: 'var(--piste-text-muted)', fontSize: '13px' }}>{data.date}</p>
-                        </div>
-                        <ReservationTime
-                            date={data.date}
-                            duration={trialMenu.duration}
-                            onSelect={handleTimeSelect}
-                            onBack={() => nextStep('DATE')}
-                        />
-                    </>
+                    <ReservationTime
+                        date={data.date}
+                        duration={trialMenu.duration}
+                        timeSlot={data.timeSlot}
+                        onSelect={handleTimeSelect}
+                        onBack={() => nextStep('TIME_SLOT')}
+                    />
                 )}
 
                 {step === 'FORM' && (

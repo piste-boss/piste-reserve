@@ -5,29 +5,24 @@ interface Props {
     date: string;
     onSelect: (time: string) => void;
     onBack: () => void;
-    duration?: number; // 分単位の所要時間 (デフォルト30分)
+    duration?: number;
+    timeSlot: string; // "09" 形式の開始時 hour
 }
 
-const generateTimes = () => {
+const generateTimesForSlot = (slotStartHour: string) => {
+    const startH = parseInt(slotStartHour, 10);
+    const startMins = startH * 60;
+    const endMins = startMins + 60;
     const times = [];
-    // Morning: 09:30 - 12:30
-    let mHour = 9, mMin = 30;
-    while (mHour < 12 || (mHour === 12 && mMin <= 30)) {
-        times.push(`${mHour.toString().padStart(2, '0')}:${mMin.toString().padStart(2, '0')}`);
-        mMin += 20; if (mMin >= 60) { mHour++; mMin -= 60; }
-    }
-    // Afternoon: 13:00 - 20:40
-    let aHour = 13, aMin = 0;
-    while (aHour < 21) {
-        times.push(`${aHour.toString().padStart(2, '0')}:${aMin.toString().padStart(2, '0')}`);
-        aMin += 20; if (aMin >= 60) { aHour++; aMin -= 60; }
+    for (let mins = startMins; mins < endMins; mins += 20) {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        times.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
     }
     return times;
 };
 
-const TIMES = generateTimes();
-
-const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 30 }) => {
+const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 30, timeSlot }) => {
     const [bookedRanges, setBookedRanges] = useState<{ start: string, end: string }[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -43,7 +38,6 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 3
 
                 if (error) {
                     console.error("Fetch Error:", error);
-                    // 列がないなどのエラー時は、古い形式で再試行（バックアップ）
                     const { data: fallbackData } = await supabase
                         .from('reservations')
                         .select('reservation_time')
@@ -71,39 +65,46 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 3
     const isToday = date === now.toLocaleDateString('sv-SE');
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
+    const times = generateTimesForSlot(timeSlot);
+    const startH = parseInt(timeSlot, 10);
+    const slotLabel = `${startH}:00〜${startH + 1}:00`;
+
+    const availableTimes = times.filter(t => {
+        const [h, m] = t.split(':').map(Number);
+        const slotMinutes = h * 60 + m;
+
+        if (isToday && slotMinutes < currentMinutes) return false;
+
+        const slotEndMins = slotMinutes + (duration || 30);
+        const slotEnd = `${Math.floor(slotEndMins / 60).toString().padStart(2, '0')}:${(slotEndMins % 60).toString().padStart(2, '0')}`;
+
+        const isBooked = bookedRanges.some(range => {
+            if (!range.start) return false;
+            const existingStart = range.start.substring(0, 5);
+            const existingEnd = range.end.substring(0, 5);
+            return (t < existingEnd && slotEnd > existingStart);
+        });
+
+        return !isBooked;
+    });
+
     return (
         <div className="card">
-            <h2 style={{ fontSize: '18px', marginBottom: '10px' }}>予約時間を選択</h2>
+            <h2 style={{ fontSize: '18px', marginBottom: '10px' }}>{slotLabel} の空き時間</h2>
             <p style={{ fontSize: '14px', color: 'var(--piste-text-muted)', marginBottom: '20px' }}>選択日: {date}</p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '20px' }}>
-                {TIMES.map(t => {
-                    const [h, m] = t.split(':').map(Number);
-                    const slotMinutes = h * 60 + m;
-                    const isPast = isToday && slotMinutes < currentMinutes;
-
-                    const isBooked = bookedRanges.some(range => {
-                        if (!range.start) return false;
-
-                        const slotStart = t;
-                        const [sh, sm] = slotStart.split(':').map(Number);
-                        const slotEndMins = sh * 60 + sm + (duration || 30);
-                        const slotEnd = `${Math.floor(slotEndMins / 60).toString().padStart(2, '0')}:${(slotEndMins % 60).toString().padStart(2, '0')}`;
-
-                        const existingStart = range.start.substring(0, 5);
-                        const existingEnd = range.end.substring(0, 5);
-
-                        // 重複判定: (新規開始 < 既存終了) かつ (新規終了 > 既存開始)
-                        return (slotStart < existingEnd && slotEnd > existingStart);
-                    });
-
-                    const isDisabled = isBooked || isPast || loading;
-
-                    return (
+            {loading ? (
+                <p style={{ textAlign: 'center', color: 'var(--piste-text-muted)' }}>読み込み中...</p>
+            ) : availableTimes.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#ef4444', marginBottom: '20px', fontSize: '15px' }}>
+                    この時間帯に空きはありません
+                </p>
+            ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '20px' }}>
+                    {availableTimes.map(t => (
                         <button
                             key={t}
                             className="card"
-                            disabled={isDisabled}
                             style={{
                                 margin: 0,
                                 padding: '15px',
@@ -111,18 +112,17 @@ const ReservationTime: React.FC<Props> = ({ date, onSelect, onBack, duration = 3
                                 border: '1px solid #eee',
                                 fontSize: '16px',
                                 fontWeight: '600',
-                                color: isBooked ? '#ef4444' : (isPast ? '#cbd5e0' : 'var(--piste-dark-blue)'),
-                                backgroundColor: isBooked ? '#fee2e2' : (isPast ? '#f3f4f6' : 'white'),
-                                cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                opacity: isDisabled ? 1 : 1
+                                color: 'var(--piste-dark-blue)',
+                                backgroundColor: 'white',
+                                cursor: 'pointer',
                             }}
-                            onClick={() => !isDisabled && onSelect(t)}
+                            onClick={() => onSelect(t)}
                         >
-                            {t} {isBooked ? '×' : (isPast ? '-' : '')}
+                            {t}
                         </button>
-                    );
-                })}
-            </div>
+                    ))}
+                </div>
+            )}
 
             <button className="btn-primary" style={{ width: '100%', background: 'transparent', color: 'var(--piste-text-muted)', border: '1px solid #ddd', boxShadow: 'none' }} onClick={onBack}>
                 戻る

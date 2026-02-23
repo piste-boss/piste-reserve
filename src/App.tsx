@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReservationCalendar from './components/ReservationCalendar';
 import ReservationTime from './components/ReservationTime';
+import ReservationTimeSlot from './components/ReservationTimeSlot';
 import ReservationForm from './components/ReservationForm';
 import MyPage from './components/MyPage';
 import logo from './assets/logo.png';
@@ -10,11 +11,12 @@ import { supabase } from './lib/supabase';
 import liff from '@line/liff';
 import type { Session } from '@supabase/supabase-js';
 
-type Step = 'MENU' | 'DATE' | 'TIME' | 'FORM' | 'COMPLETE' | 'ADMIN' | 'AUTH' | 'MYPAGE';
+type Step = 'MENU' | 'DATE' | 'TIME_SLOT' | 'TIME' | 'FORM' | 'COMPLETE' | 'ADMIN' | 'AUTH' | 'MYPAGE';
 
 interface ReservationData {
   menu: string;
   date: string;
+  timeSlot: string;
   time: string;
   name: string;
   phone: string;
@@ -60,7 +62,7 @@ const App: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(false);
 
   const [data, setData] = useState<ReservationData>({
-    menu: '', date: '', time: '', name: '', phone: '', email: '',
+    menu: '', date: '', timeSlot: '', time: '', name: '', phone: '', email: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -459,13 +461,22 @@ const App: React.FC = () => {
             }}
           />
         )}
-        {step === 'DATE' && <ReservationCalendar onSelect={(date) => { setData({ ...data, date }); nextStep('TIME'); }} onBack={() => nextStep('MENU')} />}
+        {step === 'DATE' && <ReservationCalendar onSelect={(date) => { setData({ ...data, date, timeSlot: '' }); nextStep('TIME_SLOT'); }} onBack={() => nextStep('MENU')} />}
+        {step === 'TIME_SLOT' && (
+          <ReservationTimeSlot
+            date={data.date}
+            duration={menus.find(m => m.id === data.menu)?.duration || 30}
+            onSelect={(slotStartHour) => { setData({ ...data, timeSlot: slotStartHour }); nextStep('TIME'); }}
+            onBack={() => nextStep('DATE')}
+          />
+        )}
         {step === 'TIME' && (
           <ReservationTime
             date={data.date}
             duration={menus.find(m => m.id === data.menu)?.duration || 30}
+            timeSlot={data.timeSlot}
             onSelect={(time) => { setData({ ...data, time }); nextStep('FORM'); }}
-            onBack={() => nextStep('DATE')}
+            onBack={() => nextStep('TIME_SLOT')}
           />
         )}
         {step === 'FORM' && (
