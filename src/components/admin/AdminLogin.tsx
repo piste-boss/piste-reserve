@@ -18,12 +18,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
         setError(null);
 
         try {
-            // Emergency Bypass for specified admin account
-            if (email === 's.ishikawa@piste-i.com' && password === 'Takasusn0w') {
-                onLoginSuccess();
-                return;
-            }
-
             if (useMagicLink) {
                 const { error: authError } = await supabase.auth.signInWithOtp({
                     email,
