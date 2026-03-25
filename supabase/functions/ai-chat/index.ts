@@ -138,6 +138,12 @@ ${menuDurationMapping}
 全ての予約において、(選択した開始時間 + 所要時間) が、既存の予約の時間帯と1分でも重なってはいけません。
 必ず get_booked_times で既存予約の「開始〜終了」時間を確認し、重複しない時間を案内してください。
 
+【予約可能時間の制限】
+- デコピン経由での予約は **9:00〜17:00** の時間帯のみ受け付けます。
+- 9時より前、17時以降の時間帯は案内・予約しないでください。
+- お客様が9時前や17時以降を希望された場合は「申し訳ありません、ご予約可能な時間帯は9:00〜17:00です。この範囲内でご希望の時間はございますか？」と案内してください。
+- get_booked_times の結果に9時前・17時以降の空きが含まれていても、提案しないでください。
+
 【予約キャンセル：最重要】
 - お客様からキャンセルの確定を得たら、**必ず直ちに cancel_reservation を実行してください**。
 - 「キャンセルを承りました」と答える前に、必ずツールを実行して成功（Success）を確認してください。
@@ -194,6 +200,15 @@ ${menuDurationMapping}
             else if (call.name === "add_reservation") {
                 console.log("Checking for double booking:", args.date, args.time);
 
+                // 9:00〜17:00 の時間帯制限
+                const [startH] = args.time.split(':').map(Number);
+                if (startH < 9 || startH >= 17) {
+                    toolResponseContent = JSON.stringify({
+                        error: "Time out of range",
+                        message: "予約可能な時間帯は9:00〜17:00です。この範囲内で別の時間をご提案ください。"
+                    });
+                } else {
+
                 const menuDurations = new Map(menuList.map((m: any) => [m.id, m.duration]));
                 const duration = menuDurations.get(args.menu_id) || 20;
 
@@ -237,6 +252,7 @@ ${menuDurationMapping}
                     if (error) console.error("Add reservation error:", error);
                     toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success", message: "予約を登録しました。" });
                 }
+                } // 時間帯制限の閉じ括弧
             }
             else if (call.name === "cancel_reservation") {
                 console.log("Canceling reservation with ID:", args.id);
