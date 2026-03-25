@@ -176,7 +176,9 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         }
     };
 
-    const normalizePhone = (phone: string) => phone ? phone.replace(/[-\s\u3000]/g, '') : '';
+    const toHalfWidth = (str: string) => str.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[ー−‐]/g, '-').replace(/[\u3000]/g, ' ');
+
+    const normalizePhone = (phone: string) => phone ? toHalfWidth(phone).replace(/[-\s]/g, '') : '';
 
     const lookupProfile = async (userId: string, email: string, phone: string): Promise<{ user_id: string; line_user_id: string } | null> => {
         const normalizedPhone = normalizePhone(phone);
@@ -236,7 +238,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     const handleBulkRegister = async () => {
         if (!bulkText.trim()) return;
 
-        const lines = bulkText.split('\n').map(l => l.trim()).filter(l => l);
+        const lines = toHalfWidth(bulkText).split('\n').map(l => l.trim()).filter(l => l);
         if (lines.length < 1) return;
 
         let nameCandidate = '';
