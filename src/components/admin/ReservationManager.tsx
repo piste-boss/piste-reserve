@@ -298,7 +298,7 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
         const customerPhone = matchedCustomer?.phone || '';
         const profile = await lookupProfile(customerUserId, customerEmail, customerPhone);
 
-        const bulkMenuId = menuId || menus[0]?.id;
+        const bulkMenuId = menuId || menus.find(m => m.label.includes('パーソナル'))?.id || menus[0]?.id;
         const bulkMenu = menus.find(m => m.id === bulkMenuId);
         const bulkDuration = bulkMenu?.duration || 20;
 
@@ -347,9 +347,11 @@ const ReservationManager: React.FC<ReservationManagerProps> = ({ menus }) => {
     };
 
     const openNewReservation = () => {
+        const defaultMenu = menus.find(m => m.label.includes('パーソナル'));
         setEditForm({
             reservation_date: formatDate(selectedDate),
-            reservation_time: '10:00'
+            reservation_time: '10:00',
+            menu_id: defaultMenu?.id || menus[0]?.id || ''
         });
         setIsEditing(true);
     };
