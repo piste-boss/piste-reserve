@@ -208,51 +208,50 @@ ${menuDurationMapping}
                         message: "予約可能な時間帯は9:00〜17:00です。この範囲内で別の時間をご提案ください。"
                     });
                 } else {
+                    const menuDurations = new Map(menuList.map((m: any) => [m.id, m.duration]));
+                    const duration = menuDurations.get(args.menu_id) || 20;
 
-                const menuDurations = new Map(menuList.map((m: any) => [m.id, m.duration]));
-                const duration = menuDurations.get(args.menu_id) || 20;
+                    const { data: booked } = await supabase
+                        .from('reservations')
+                        .select('reservation_time, reservation_end_time')
+                        .eq('reservation_date', args.date)
+                        .neq('status', 'cancelled');
 
-                const { data: booked } = await supabase
-                    .from('reservations')
-                    .select('reservation_time, reservation_end_time')
-                    .eq('reservation_date', args.date)
-                    .neq('status', 'cancelled');
+                    const newStart = args.time;
+                    const [nh, nm] = newStart.split(':').map(Number);
+                    const newEndMins = nh * 60 + nm + duration;
+                    const newEnd = `${Math.floor(newEndMins / 60).toString().padStart(2, '0')}:${(newEndMins % 60).toString().padStart(2, '0')}`;
 
-                const newStart = args.time;
-                const [nh, nm] = newStart.split(':').map(Number);
-                const newEndMins = nh * 60 + nm + duration;
-                const newEnd = `${Math.floor(newEndMins / 60).toString().padStart(2, '0')}:${(newEndMins % 60).toString().padStart(2, '0')}`;
-
-                const hasOverlap = booked?.some((r: any) => {
-                    const exStart = r.reservation_time.substring(0, 5);
-                    const exEnd = (r.reservation_end_time || r.reservation_time).substring(0, 5);
-                    return (newStart < exEnd && newEnd > exStart);
-                });
-
-                if (hasOverlap) {
-                    console.log("Double booking (overlap) detected!");
-                    toolResponseContent = JSON.stringify({
-                        error: "Double booking error",
-                        message: "申し訳ありません。ご提示いただいた時間は、所要時間を含めると別のお客様の予約と重なってしまいます。別の時間を提案してください。"
+                    const hasOverlap = booked?.some((r: any) => {
+                        const exStart = r.reservation_time.substring(0, 5);
+                        const exEnd = (r.reservation_end_time || r.reservation_time).substring(0, 5);
+                        return (newStart < exEnd && newEnd > exStart);
                     });
-                } else {
-                    console.log("Adding reservation for:", args.name || userContext?.name);
-                    const { error } = await supabase.from('reservations').insert([{
-                        user_id: userContext?.id,
-                        name: args.name || userContext?.name,
-                        email: args.email || userContext?.email,
-                        phone: args.phone || userContext?.phone,
-                        reservation_date: args.date,
-                        reservation_time: args.time,
-                        reservation_end_time: newEnd,
-                        menu_id: args.menu_id,
-                        source: 'ai-dekopin',
-                        line_user_id: lineUserId
-                    }]);
-                    if (error) console.error("Add reservation error:", error);
-                    toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success", message: "予約を登録しました。" });
+
+                    if (hasOverlap) {
+                        console.log("Double booking (overlap) detected!");
+                        toolResponseContent = JSON.stringify({
+                            error: "Double booking error",
+                            message: "申し訳ありません。ご提示いただいた時間は、所要時間を含めると別のお客様の予約と重なってしまいます。別の時間を提案してください。"
+                        });
+                    } else {
+                        console.log("Adding reservation for:", args.name || userContext?.name);
+                        const { error } = await supabase.from('reservations').insert([{
+                            user_id: userContext?.id,
+                            name: args.name || userContext?.name,
+                            email: args.email || userContext?.email,
+                            phone: args.phone || userContext?.phone,
+                            reservation_date: args.date,
+                            reservation_time: args.time,
+                            reservation_end_time: newEnd,
+                            menu_id: args.menu_id,
+                            source: 'ai-dekopin',
+                            line_user_id: lineUserId
+                        }]);
+                        if (error) console.error("Add reservation error:", error);
+                        toolResponseContent = error ? JSON.stringify({ error: error.message }) : JSON.stringify({ status: "Success", message: "予約を登録しました。" });
+                    }
                 }
-                } // 時間帯制限の閉じ括弧
             }
             else if (call.name === "cancel_reservation") {
                 console.log("Canceling reservation with ID:", args.id);
@@ -303,4 +302,4 @@ ${menuDurationMapping}
             status: 400,
         });
     }
-})
+});
