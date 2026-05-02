@@ -315,23 +315,32 @@ const App: React.FC = () => {
         line_user_id: profile?.line_user_id || liffLineUserId || null
       };
 
-      const { data: inserted, error } = await supabase.from('reservations').insert([reservation]).select();
-      if (error) throw error;
+      let savedReservationId: string | null = null;
+
+      if (changingReservationId) {
+        const { data: updated, error } = await supabase
+          .from('reservations')
+          .update({
+            ...reservation,
+            status: 'active',
+            cancel_reason: null
+          })
+          .eq('id', changingReservationId)
+          .select();
+        if (error) throw error;
+        savedReservationId = updated?.[0]?.id || changingReservationId;
+        setChangingReservationId(null);
+      } else {
+        const { data: inserted, error } = await supabase.from('reservations').insert([reservation]).select();
+        if (error) throw error;
+        savedReservationId = inserted?.[0]?.id || null;
+      }
 
       if (session) {
         await supabase.from('profiles').update({ name: formData.name, phone: formData.phone }).eq('id', session.user.id);
       }
 
-      if (inserted && inserted.length > 0) setLastReservationId(inserted[0].id);
-
-      // 予約変更の場合、旧予約をキャンセル
-      if (changingReservationId) {
-        await supabase
-          .from('reservations')
-          .update({ status: 'cancelled', cancel_reason: '予約変更のため' })
-          .eq('id', changingReservationId);
-        setChangingReservationId(null);
-      }
+      if (savedReservationId) setLastReservationId(savedReservationId);
 
       setData({ ...data, ...formData });
       if (profile?.line_user_id || liffLineUserId) setIsLinked(true);

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzfrCsbZkBW7koRl73ArqxFt9BlvEv3Wy_Ezld9L0uiOEsdBkmNf_6aKm7v_Ub9oiyt/exec";
+const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwh0CSaG0PJ6JSHUQe0eXDdgUExhhk0Q7thSoxOeuXZEaRtjppR_qS5WdJW2X1V_aTViw/exec";
 const LINE_CHANNEL_ACCESS_TOKEN = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
 
 const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL");
@@ -37,6 +37,7 @@ serve(async (req) => {
     const effectiveType = isCancellation ? 'DELETE' : type;
 
     const currentRecord = effectiveType === 'DELETE' ? (old_record || record) : record
+    const isChangeCancellation = effectiveType === 'DELETE' && currentRecord.cancel_reason === '予約変更のため';
     console.log(`予約データ検知 [${effectiveType}]:`, currentRecord.id, currentRecord.source)
 
     // Googleカレンダー手入力予定の同期が重複した場合は、2件目以降の通知を止める。
@@ -230,7 +231,7 @@ serve(async (req) => {
     }
 
     // ユーザーへのLINE通知
-    if (lineUserId && LINE_CHANNEL_ACCESS_TOKEN) {
+    if (!isChangeCancellation && lineUserId && LINE_CHANNEL_ACCESS_TOKEN) {
       let messageText = "";
       if (effectiveType === 'INSERT') {
         messageText = `【Piste 予約確定】\nご予約ありがとうございます。\n\n日時: ${dateStr} ${timeStr}〜\nメニュー: ${menuName}\n\n当日お会いできるのを楽しみにしております。`;
@@ -244,7 +245,7 @@ serve(async (req) => {
     }
 
     // 各種メール通知（管理者・ユーザー）
-    if (RESEND_API_KEY) {
+    if (!isChangeCancellation && RESEND_API_KEY) {
       const lineLink = "https://liff.line.me/2009052718-9rclRq3Z";
       const lineNotice = `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n【LINE連携のご案内】\nLINE連携をしていただくと、予約のリマインド通知をLINEで受け取れるほか、AIチャットでの予約確認・変更もよりスムーズになります。\nぜひ以下のリンクから連携をお願いいたします。\n${lineLink}\n━━━━━━━━━━━━━━━━━━━━━━━━━━`;
       const signature = `${lineNotice}\n\n☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆☆\nPiste（ピステ）\nhttps://piste-i.com\ntel:09099480878\n〒447-0042\n愛知県碧南市中後町3ー3中央ビル1F`;

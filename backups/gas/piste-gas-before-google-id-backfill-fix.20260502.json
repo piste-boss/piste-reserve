@@ -1,0 +1,74 @@
+{
+  "scriptId": "1ZIDABkebwrfbloPgc2qaVGntemhAzHOe-Sv8WLa3hvsVdv_LLsd0Fmrd",
+  "files": [
+    {
+      "name": "appsscript",
+      "type": "JSON",
+      "source": "{\n  \"timeZone\": \"Asia/Tokyo\",\n  \"dependencies\": {},\n  \"exceptionLogging\": \"STACKDRIVER\",\n  \"runtimeVersion\": \"V8\",\n  \"webapp\": {\n    \"executeAs\": \"USER_DEPLOYING\",\n    \"access\": \"ANYONE_ANONYMOUS\"\n  }\n}",
+      "lastModifyUser": {
+        "domain": "gmail.com",
+        "email": "pistei.com2019@gmail.com",
+        "name": "e_s_mama",
+        "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ7M06BON6bRr-pAQZ62YBOy2vc65uiXHbFFjgzp2IpoZkSWBuW=h128"
+      },
+      "createTime": "2026-02-03T11:57:34.444Z",
+      "updateTime": "2026-05-02T09:28:20.198Z",
+      "functionSet": {}
+    },
+    {
+      "name": "コード",
+      "type": "SERVER_JS",
+      "source": "/* ==========================================\n   ピステ予約システム：GAS最終完全版（2026/02/07 修正版）\n   ・削除連携の強化\n   ・カレンダー書き戻り防止\n   ・高速化対応\n   ========================================== */\n\nconst SUPABASE_URL = \"https://ppmupxfwmfsxxaxcohxp.supabase.co\";\n// 前と同じシークレットキー\nconst SUPABASE_SERVICE_ROLE_KEY = \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwbXVweGZ3bWZzeHhheGNvaHhwIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDEwNzU1MywiZXhwIjoyMDg1NjgzNTUzfQ.tDQqhUlF7v--Q3Swli-AH2ht4nesnQ6isGcs4GjjAvw\";\n\n// 専用カレンダーID\nconst RESERVA_CALENDAR_ID = \"143b0e2167d04f380498027dd740c443b795438ebf62f5a8293ae98e6461f4cf@group.calendar.google.com\";\n\n// --- メニュー名変換 ---\nfunction getMenuName(menuId) {\n  const menus = {\n    'personal-20': 'パーソナル', \n    'trial-60': '無料体験', \n    'entry-30': '入会手続き', \n    'online-30': 'オンライン', \n    'first-60': '初回パーソナル'\n  };\n  return menus[menuId] || 'パーソナルトレーニング';\n}\n\n// --- Webhook受付 (重要な修正箇所: IDによる確実な特定) ---\nfunction doPost(e) {\n  try {\n    const contents = e.postData.contents;\n    const body = JSON.parse(contents);\n    \n    // データの整理\n    const type = (body.type || \"insert\").toLowerCase();\n    let payload = body.record || body;\n    if (type === 'delete' && body.old_record) payload = body.old_record;\n\n    if (!payload || !payload.id) throw new Error(\"Invalid payload ID\");\n\n    const calendar = CalendarApp.getCalendarById(RESERVA_CALENDAR_ID);\n    if (!calendar) throw new Error(\"Calendar not found\");\n\n    // ■ 既存イベントの特定ロジック（改良版）\n    let existingEvent = null;\n\n    // 1. まず google_event_id があればそれで直接特定を試みる（最も確実）\n    if (payload.google_event_id) {\n      if (payload.google_event_id.includes(\"@\")) {\n         try {\n           existingEvent = calendar.getEventById(payload.google_event_id);\n         } catch(e) {\n           console.log(\"ID lookup failed: \" + e);\n         }\n      }\n    }\n\n    // 2. なければ、日付と詳細文から検索（フォールバック）\n    if (!existingEvent) {\n      const targetDate = new Date(payload.reservation_date.toString().replace(/-/g, \"/\"));\n      const searchStart = new Date(targetDate.getTime() - 86400000); // 1日前\n      const searchEnd = new Date(targetDate.getTime() + 86400000);   // 1日後\n      const events = calendar.getEvents(searchStart, searchEnd);\n      for (const ev of events) {\n        if ((ev.getDescription() || \"\").includes(`[id:${payload.id}]`)) {\n          existingEvent = ev;\n          break;\n        }\n      }\n    }\n\n    // ■ 操作の分岐\n    \n    // A. 削除リクエスト\n    if (type === 'delete' || payload.status === 'canceled') {\n      if (existingEvent) {\n        existingEvent.deleteEvent();\n        return ContentService.createTextOutput(JSON.stringify({ status: \"success\", action: \"deleted\" })).setMimeType(ContentService.MimeType.JSON);\n      } else {\n        return ContentService.createTextOutput(JSON.stringify({ status: \"success\", message: \"already deleted or not found\" })).setMimeType(ContentService.MimeType.JSON);\n      }\n    }\n\n    // B. 更新・新規作成リクエスト\n    if (existingEvent) {\n      // ■ 書き戻り防止: 日時がすでに合っているなら何もしない\n      const currentStart = Utilities.formatDate(existingEvent.getStartTime(), \"JST\", \"yyyy-MM-dd HH:mm\");\n      const RequestTime = (payload.reservation_time || \"00:00\").substring(0, 5);\n      const newStart = `${payload.reservation_date} ${RequestTime}`;\n\n      if (currentStart === newStart) {\n        // スキップ\n        return ContentService.createTextOutput(JSON.stringify({ status: \"success\", eventId: existingEvent.getId(), skipped: true })).setMimeType(ContentService.MimeType.JSON);\n      }\n      // 不一致なら削除して作り直しへ\n      existingEvent.deleteEvent();\n    }\n\n    // C. 新規作成（または作り直し）\n    let eventId = null;\n    const RequestTime = (payload.reservation_time || \"00:00\").substring(0, 5);\n    const start = new Date(payload.reservation_date.toString().replace(/-/g, \"/\") + \" \" + RequestTime);\n    \n    let end;\n    if (payload.reservation_end_time) {\n      const endTime = payload.reservation_end_time.substring(0, 5);\n      end = new Date(payload.reservation_date.toString().replace(/-/g, \"/\") + \" \" + endTime);\n    } else {\n      end = new Date(start.getTime() + 20 * 60 * 1000);\n    }\n    \n    const event = calendar.createEvent(`${payload.name}様`, start, end, { \n      description: `メニュー: ${getMenuName(payload.menu_id)}\\n[id:${payload.id}]\\n電話: ${payload.phone || \"\"}` \n    });\n    eventId = event.getId();\n\n    // DBにIDを書き戻す\n    try {\n      updateSupabaseRecord(\"reservations\", payload.id, {\n        google_event_id: eventId\n      });\n    } catch (e) {}\n\n    return ContentService.createTextOutput(JSON.stringify({ status: \"success\", eventId: eventId })).setMimeType(ContentService.MimeType.JSON);\n\n  } catch(err) { \n    return ContentService.createTextOutput(JSON.stringify({ status: \"error\", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);\n  }\n}\n\n// --- 高速化した双方向同期（変更なし） ---\nfunction syncCalendarToSupabase() {\n  console.log(\"同期開始\");\n  const lock = LockService.getScriptLock();\n  if (!lock.tryLock(30000)) {\n    console.log(\"前回の同期が実行中のためスキップ\");\n    return;\n  }\n  try {\n    const now = new Date();\n    const start = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); \n    const end = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);\n    const calendar = CalendarApp.getCalendarById(RESERVA_CALENDAR_ID);\n    if (!calendar) return;\n\n    // DBデータ取得\n    const headers = { \"apikey\": SUPABASE_SERVICE_ROLE_KEY, \"Authorization\": \"Bearer \" + SUPABASE_SERVICE_ROLE_KEY };\n    const url = `${SUPABASE_URL}/rest/v1/reservations?reservation_date=gte.${Utilities.formatDate(start, \"JST\", \"yyyy-MM-dd\")}&select=id,google_event_id,reservation_time,reservation_end_time`;\n    const res = UrlFetchApp.fetch(url, { headers: headers, muteHttpExceptions: true });\n    if (res.getResponseCode() !== 200) return;\n\n    const dbData = JSON.parse(res.getContentText());\n    const dbMap = {}; \n    dbData.forEach(r => { if(r.google_event_id) dbMap[r.google_event_id] = r; });\n    \n    const liveIds = new Set();\n    const events = calendar.getEvents(start, end);\n\n    // 一括処理用リスト\n    const toInsert = [];\n    const toDeleteIds = [];\n\n    events.forEach(event => {\n      if (event.isAllDayEvent()) return;\n      const eid = event.getId(); \n      liveIds.add(eid);\n      \n      const dStr = Utilities.formatDate(event.getStartTime(), \"JST\", \"yyyy-MM-dd\");\n      const tStr = Utilities.formatDate(event.getStartTime(), \"JST\", \"HH:mm\");\n      const etStr = Utilities.formatDate(event.getEndTime(), \"JST\", \"HH:mm\");\n\n      if (dbMap[eid]) {\n        // 変更検知\n        if (dbMap[eid].reservation_time.substring(0,5) !== tStr || \n            (dbMap[eid].reservation_end_time && dbMap[eid].reservation_end_time.substring(0,5) !== etStr)) {\n          updateSupabaseRecord(\"reservations\", dbMap[eid].id, { reservation_date: dStr, reservation_time: tStr, reservation_end_time: etStr });\n        }\n      } else if (!(event.getDescription() || \"\").includes(\"[id:\")) {\n        // 新規イベント（詳細欄にIDがない＝手動作成）をリストに追加\n        toInsert.push({ \n          name: `（予定：${event.getTitle()}）`, \n          email: \"system@piste.com\", \n          phone: \"000\", \n          reservation_date: dStr, \n          reservation_time: tStr, \n          reservation_end_time: etStr, \n          menu_id: \"personal-20\", \n          source: \"google-manual\", \n          google_event_id: eid \n        });\n      }\n    });\n\n    // DBにあってカレンダーにないものを削除リストへ\n    dbData.forEach(row => { \n      if (row.google_event_id && !liveIds.has(row.google_event_id)) {\n        toDeleteIds.push(row.google_event_id);\n      }\n    });\n\n    // 一括実行\n    if (toInsert.length > 0) {\n      console.log(`一括追加: ${toInsert.length}件`);\n      postDB_Bulk(toInsert);\n    }\n    if (toDeleteIds.length > 0) {\n      console.log(`一括削除: ${toDeleteIds.length}件`);\n      deleteDB_Bulk(toDeleteIds);\n    }\n  } catch(e) {\n    console.error(e);\n  } finally {\n    lock.releaseLock();\n  }\n}\n\n// --- 通信ヘルパー ---\nfunction getHeaders() {\n  return { \"apikey\": SUPABASE_SERVICE_ROLE_KEY, \"Authorization\": \"Bearer \" + SUPABASE_SERVICE_ROLE_KEY, \"Content-Type\": \"application/json\" };\n}\n\nfunction updateSupabaseRecord(table, id, data) { \n  UrlFetchApp.fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, { method: \"PATCH\", headers: getHeaders(), payload: JSON.stringify(data), muteHttpExceptions: true }); \n}\n\nfunction postDB_Bulk(data) {\n  if (!data || data.length === 0) return;\n\n  // 同期開始時点のDBスナップショットが古い場合に備え、INSERT直前にも重複を確認する。\n  // これで同じGoogle予定からの多重登録と、それに伴うメール大量送信を抑える。\n  const filtered = data.filter(row => {\n    if (!row.google_event_id) return true;\n    const url = SUPABASE_URL + \"/rest/v1/reservations?google_event_id=eq.\" + encodeURIComponent(row.google_event_id) + \"&reservation_date=eq.\" + encodeURIComponent(row.reservation_date) + \"&reservation_time=eq.\" + encodeURIComponent(row.reservation_time) + \"&or=(status.is.null,status.neq.cancelled)&select=id&limit=1\";\n    const res = UrlFetchApp.fetch(url, { method: \"GET\", headers: getHeaders(), muteHttpExceptions: true });\n    if (res.getResponseCode() !== 200) {\n      console.log(\"重複確認に失敗したため登録対象に残します: \" + row.google_event_id);\n      return true;\n    }\n    const existing = JSON.parse(res.getContentText());\n    if (existing.length > 0) {\n      console.log(\"既存のGoogle予定をスキップ: \" + row.google_event_id);\n      return false;\n    }\n    return true;\n  });\n\n  if (filtered.length === 0) {\n    console.log(\"登録対象の新規Google予定はありません\");\n    return;\n  }\n\n  UrlFetchApp.fetch(SUPABASE_URL + \"/rest/v1/reservations\", { method: \"POST\", headers: getHeaders(), payload: JSON.stringify(filtered), muteHttpExceptions: true });\n}\n\nfunction deleteDB_Bulk(ids) {\n  const chunkSize = 20;\n  for (let i = 0; i < ids.length; i += chunkSize) {\n    const chunk = ids.slice(i, i + chunkSize);\n    const valString = chunk.map(id => `\"${id}\"`).join(',');\n    const url = `${SUPABASE_URL}/rest/v1/reservations?google_event_id=in.(${encodeURIComponent(valString)})`;\n    UrlFetchApp.fetch(url, { method: \"DELETE\", headers: getHeaders(), muteHttpExceptions: true });\n  }\n}\n",
+      "lastModifyUser": {
+        "domain": "gmail.com",
+        "email": "pistei.com2019@gmail.com",
+        "name": "e_s_mama",
+        "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ7M06BON6bRr-pAQZ62YBOy2vc65uiXHbFFjgzp2IpoZkSWBuW=h128"
+      },
+      "createTime": "2026-02-03T11:57:34.444Z",
+      "updateTime": "2026-05-02T09:28:20.198Z",
+      "functionSet": {
+        "values": [
+          {
+            "name": "getMenuName",
+            "parameters": [
+              "menuId"
+            ]
+          },
+          {
+            "name": "doPost",
+            "parameters": [
+              "e"
+            ]
+          },
+          {
+            "name": "syncCalendarToSupabase"
+          },
+          {
+            "name": "getHeaders"
+          },
+          {
+            "name": "updateSupabaseRecord",
+            "parameters": [
+              "table",
+              "id",
+              "data"
+            ]
+          },
+          {
+            "name": "postDB_Bulk",
+            "parameters": [
+              "data"
+            ]
+          },
+          {
+            "name": "deleteDB_Bulk",
+            "parameters": [
+              "ids"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

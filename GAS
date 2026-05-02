@@ -24,6 +24,10 @@ function getMenuName(menuId) {
   return menus[menuId] || 'パーソナルトレーニング';
 }
 
+function getReservationCalendar() {
+  return CalendarApp.getCalendarById(RESERVA_CALENDAR_ID) || CalendarApp.getDefaultCalendar();
+}
+
 // --- Webhook受付 (重要な修正箇所: IDによる確実な特定) ---
 function doPost(e) {
   try {
@@ -37,7 +41,7 @@ function doPost(e) {
 
     if (!payload || !payload.id) throw new Error("Invalid payload ID");
 
-    const calendar = CalendarApp.getCalendarById(RESERVA_CALENDAR_ID);
+    const calendar = getReservationCalendar();
     if (!calendar) throw new Error("Calendar not found");
 
     // ■ 既存イベントの特定ロジック（改良版）
@@ -88,8 +92,16 @@ function doPost(e) {
       const newStart = `${payload.reservation_date} ${RequestTime}`;
 
       if (currentStart === newStart) {
-        // スキップ
-        return ContentService.createTextOutput(JSON.stringify({ status: "success", eventId: existingEvent.getId(), skipped: true })).setMimeType(ContentService.MimeType.JSON);
+        // スキップ。ただしDB側にgoogle_event_idが残っていない場合はここで補完する。
+        const existingEventId = existingEvent.getId();
+        if (!payload.google_event_id) {
+          try {
+            updateSupabaseRecord("reservations", payload.id, {
+              google_event_id: existingEventId
+            });
+          } catch (e) {}
+        }
+        return ContentService.createTextOutput(JSON.stringify({ status: "success", eventId: existingEventId, skipped: true })).setMimeType(ContentService.MimeType.JSON);
       }
       // 不一致なら削除して作り直しへ
       existingEvent.deleteEvent();
@@ -127,6 +139,15 @@ function doPost(e) {
   }
 }
 
+function apiHandleReservation(body) {
+  const output = doPost({
+    postData: {
+      contents: JSON.stringify(body)
+    }
+  });
+  return output.getContent();
+}
+
 // --- 高速化した双方向同期（変更なし） ---
 function syncCalendarToSupabase() {
   console.log("同期開始");
@@ -140,7 +161,7 @@ function syncCalendarToSupabase() {
     const now = new Date();
     const start = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); 
     const end = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
-    const calendar = CalendarApp.getCalendarById(RESERVA_CALENDAR_ID);
+    const calendar = getReservationCalendar();
     if (!calendar) return;
 
     // DBデータ取得
