@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwh0CSaG0PJ6JSHUQe0eXDdgUExhhk0Q7thSoxOeuXZEaRtjppR_qS5WdJW2X1V_aTViw/exec";
+const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbz_dAmswGmUDSCf8eLjffVwm0u1S92_pIFaFxynUbDParrqQYIh_xhA8mS1U6M0OJb2Zw/exec";
 const LINE_CHANNEL_ACCESS_TOKEN = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
 
 const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL");

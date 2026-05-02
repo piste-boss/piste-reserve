@@ -25,7 +25,7 @@ function getMenuName(menuId) {
 }
 
 function getReservationCalendar() {
-  return CalendarApp.getCalendarById(RESERVA_CALENDAR_ID) || CalendarApp.getDefaultCalendar();
+  return CalendarApp.getCalendarById(RESERVA_CALENDAR_ID);
 }
 
 // --- Webhook受付 (重要な修正箇所: IDによる確実な特定) ---
