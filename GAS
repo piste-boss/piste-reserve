@@ -130,6 +130,12 @@ function doPost(e) {
 // --- 高速化した双方向同期（変更なし） ---
 function syncCalendarToSupabase() {
   console.log("同期開始");
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    console.log("前回の同期が実行中のためスキップ");
+    return;
+  }
+
   try {
     const now = new Date();
     const start = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); 
@@ -203,6 +209,8 @@ function syncCalendarToSupabase() {
     }
   } catch(e) {
     console.error(e);
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -216,7 +224,32 @@ function updateSupabaseRecord(table, id, data) {
 }
 
 function postDB_Bulk(data) {
-  UrlFetchApp.fetch(`${SUPABASE_URL}/rest/v1/reservations`, { method: "POST", headers: getHeaders(), payload: JSON.stringify(data), muteHttpExceptions: true });
+  if (!data || data.length === 0) return;
+
+  // 同期開始時点のDBスナップショットが古い場合に備え、INSERT直前にも重複を確認する。
+  // これで同じGoogle予定からの多重登録と、それに伴うメール大量送信を抑える。
+  const filtered = data.filter(row => {
+    if (!row.google_event_id) return true;
+    const url = `${SUPABASE_URL}/rest/v1/reservations?google_event_id=eq.${encodeURIComponent(row.google_event_id)}&reservation_date=eq.${encodeURIComponent(row.reservation_date)}&reservation_time=eq.${encodeURIComponent(row.reservation_time)}&or=(status.is.null,status.neq.cancelled)&select=id&limit=1`;
+    const res = UrlFetchApp.fetch(url, { method: "GET", headers: getHeaders(), muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) {
+      console.log("重複確認に失敗したため登録対象に残します: " + row.google_event_id);
+      return true;
+    }
+    const existing = JSON.parse(res.getContentText());
+    if (existing.length > 0) {
+      console.log("既存のGoogle予定をスキップ: " + row.google_event_id);
+      return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    console.log("登録対象の新規Google予定はありません");
+    return;
+  }
+
+  UrlFetchApp.fetch(`${SUPABASE_URL}/rest/v1/reservations`, { method: "POST", headers: getHeaders(), payload: JSON.stringify(filtered), muteHttpExceptions: true });
 }
 
 function deleteDB_Bulk(ids) {

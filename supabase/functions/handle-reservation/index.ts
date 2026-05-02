@@ -39,6 +39,31 @@ serve(async (req) => {
     const currentRecord = effectiveType === 'DELETE' ? (old_record || record) : record
     console.log(`予約データ検知 [${effectiveType}]:`, currentRecord.id, currentRecord.source)
 
+    // Googleカレンダー手入力予定の同期が重複した場合は、2件目以降の通知を止める。
+    // 通知は残しつつ、大量送信の原因になる同一 google_event_id の多重INSERTだけを抑止する。
+    if (
+      effectiveType === 'INSERT' &&
+      currentRecord.source === 'google-manual' &&
+      currentRecord.google_event_id
+    ) {
+      const { data: duplicateRows, error: duplicateError } = await supabase
+        .from('reservations')
+        .select('id')
+        .eq('google_event_id', currentRecord.google_event_id)
+        .eq('reservation_date', currentRecord.reservation_date)
+        .eq('reservation_time', currentRecord.reservation_time)
+        .neq('id', currentRecord.id)
+        .or('status.is.null,status.neq.cancelled')
+        .limit(1);
+
+      if (duplicateError) {
+        console.error("Google手入力予定の重複確認エラー:", duplicateError);
+      } else if (duplicateRows && duplicateRows.length > 0) {
+        console.log("Google手入力予定の重複INSERTのため通知をスキップ:", currentRecord.google_event_id);
+        return new Response(JSON.stringify({ message: "Duplicate google-manual insert skipped" }), { status: 200 });
+      }
+    }
+
     // 基本情報
     const dateStr = currentRecord.reservation_date;
     const timeStr = currentRecord.reservation_time;
