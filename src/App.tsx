@@ -398,6 +398,9 @@ const App: React.FC = () => {
       <main style={{ paddingBottom: '100px' }}>
         {step === 'MENU' && (
           <div className="card">
+            <div style={{ background: '#fff7ed', padding: '15px', borderRadius: '12px', marginBottom: '20px', fontSize: '14px', lineHeight: '1.7', border: '1px solid #fed7aa', color: '#9a3412', fontWeight: 'bold' }}>
+              満枠のため新規会員募集は終了しました。再開予定はインスタグラムにて告知しますので、フォローしてお待ちください。
+            </div>
             {!session && (
               <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', border: '1px solid #eee' }}>
                 💡 ログインするとスムーズに予約できます
